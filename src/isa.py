@@ -1,0 +1,20 @@
+
+ISA = {
+    "LOADK": 0x01,
+    "ENC32": 0x02,
+    "DEC32": 0x03,
+    "MOVB":  0x04,
+    "STB":   0x05,
+    "MOV":   0x06,
+    "LD":    0x07,
+    "ST":    0x08,
+    "ADD":   0x09,
+    "SUB":   0x0A,
+    "XOR":   0x0B,
+    "SHL":   0x0C,
+    "SHR":   0x0D,
+    "JMP":   0x0E,
+    "BEQ":   0x0F,
+    "BNE":   0x10,
+    "HALT":  0xFF
+}
