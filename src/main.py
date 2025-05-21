@@ -1,5 +1,5 @@
-from cpu import load_program, run, data_memory, registers
 from assembler import assemble
+import cpu
 
 # ------------------------------------------
 # Función para dividir texto plano en bloques de 64 bits (8 bytes)
@@ -47,24 +47,22 @@ for i, (v0, v1) in enumerate(text_blocks):
     print(f"\n[ Bloque {i} ] ------------------")
 
     # Cargar el bloque actual (v0, v1) en memoria
-    data_memory[0] = v0
-    data_memory[1] = v1
+    cpu.data_memory[0] = v0
+    cpu.data_memory[1] = v1
 
     # Reiniciar el procesador para cada bloque
-    import cpu
-    cpu.pc = 0
-    cpu.halted = False
+    cpu.reset() #IMPORTANTE para que no se quede en HALT
 
     # Ensamblar el programa y cargarlo en memoria de instrucciones
     program = assemble(program_src)
-    load_program(program)
+    cpu.load_program(program)
 
     # Ejecutar el programa (cifrado + descifrado)
-    run()
+    cpu.run()
 
     # Leer resultado del descifrado desde la memoria (posición 20 y 21)
-    plain_v0 = data_memory[20]
-    plain_v1 = data_memory[21]
+    plain_v0 = cpu.data_memory[20]
+    plain_v1 = cpu.data_memory[21]
     recovered_blocks.append((plain_v0, plain_v1))
 
 # 5. Reconstruir el texto a partir de los bloques descifrados

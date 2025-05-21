@@ -1,115 +1,151 @@
-from isa import ISA  # Importa el set de instrucciones definido externamente
+from isa import ISA
 
-# ------------------------------------------
-# Estado del procesador (simulado)
-# ------------------------------------------
+# Estado del procesador
+registers = [0] * 16
+data_memory = [0] * 1024
+instr_memory = []
+vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 
-registers = [0] * 16  # Registros generales R0-R15 (solo se usan R1–R4 aquí)
-data_memory = [0] * 1024  # Memoria de datos (espacio de lectura/escritura)
-instr_memory = []  # Memoria de instrucciones cargadas (programa ensamblado)
+# Registros internos del multiciclo
+pc = 0
+ir = None           # Instruction Register
+state = "FETCH"     # Estado actual de la máquina de estados
+halted = False
 
-# "Vault" o bóveda: almacena claves de 128 bits (4 palabras de 32 bits) para cifrado/descifrado
-vault = {
-    0: [0]*4,
-    1: [0]*4,
-    2: [0]*4,
-    3: [0]*4
+# Variables temporales para instrucciones complejas
+tmp = {
+    "opcode": None,
+    "args": None,
+    "v0": None,
+    "v1": None,
+    "sum": None,
+    "rounds": 0,
+    "key": None,
+    "mode": None,  # "ENC" o "DEC"
 }
 
-pc = 0         # Program Counter: índice de la instrucción actual
-halted = False # Señal de detención del procesador (estado HALT)
-
-# ------------------------------------------
-# Carga el programa ensamblado en la memoria de instrucciones
-# ------------------------------------------
 def load_program(program):
     global instr_memory
     instr_memory = program
 
-# ------------------------------------------
-# Ejecuta una instrucción según el valor de pc
-# ------------------------------------------
-def execute_instruction():
-    global pc, halted
-    instr = instr_memory[pc]
-    opcode = instr[0]  # Primer elemento es el código de operación (opcode)
+def step():
+    global pc, halted, state, ir, tmp
 
-    print(f"[PC={pc}] Executing: {instr}")  # Debug: mostrar instrucción actual
+    if state == "FETCH":
+        if pc >= len(instr_memory):
+            halted = True
+            return
+        ir = instr_memory[pc]
+        tmp["opcode"] = ir[0]
+        tmp["args"] = ir[1:]
+        state = "DECODE"
 
-    # Instrucción: LOADK <key_id>, k0, k1, k2, k3
-    # Carga una clave en la "vault" (bóveda) de claves
-    if opcode == ISA["LOADK"]:
-        kid = instr[1]  # ID de la clave (0–3)
-        vault[kid] = [instr[2], instr[3], instr[4], instr[5]]
-        pc += 1
+    elif state == "DECODE":
+        opcode = tmp["opcode"]
 
-    # Instrucción: MOVB <direccion>
-    # Carga dos palabras (v0, v1) desde memoria en R1 y R2
-    elif opcode == ISA["MOVB"]:
-        base_addr = instr[1]
-        registers[1] = int(data_memory[base_addr])
-        registers[2] = int(data_memory[base_addr + 1])
+        if opcode == ISA["LOADK"]:
+            kid, *key_parts = tmp["args"]
+            vault[kid] = key_parts
+            pc += 1
+            state = "FETCH"
+
+        elif opcode == ISA["MOVB"]:
+            tmp["addr"] = tmp["args"][0]
+            state = "EXEC_MOVB"
+
+        elif opcode == ISA["STB"]:
+            tmp["addr"] = tmp["args"][0]
+            state = "EXEC_STB"
+
+        elif opcode == ISA["ENC32"]:
+            kid = tmp["args"][0]
+            tmp["key"] = vault[kid]
+            tmp["sum"] = 0
+            tmp["rounds"] = 0
+            tmp["v0"] = registers[1]
+            tmp["v1"] = registers[2]
+            tmp["mode"] = "ENC"
+            print(f" -> ENC32 START: v0={hex(tmp['v0'])}, v1={hex(tmp['v1'])}")
+            state = "ENC_LOOP"
+
+        elif opcode == ISA["DEC32"]:
+            kid = tmp["args"][0]
+            tmp["key"] = vault[kid]
+            tmp["sum"] = (0x9e3779b9 * 32) & 0xFFFFFFFF
+            tmp["rounds"] = 0
+            tmp["v0"] = registers[1]
+            tmp["v1"] = registers[2]
+            tmp["mode"] = "DEC"
+            print(f" -> DEC32 START: v0={hex(tmp['v0'])}, v1={hex(tmp['v1'])}")
+            state = "ENC_LOOP"
+
+        elif opcode == ISA["HALT"]:
+            print(" -> HALT encountered")
+            halted = True
+
+    elif state == "EXEC_MOVB":
+        addr = tmp["addr"]
+        registers[1] = int(data_memory[addr])
+        registers[2] = int(data_memory[addr + 1])
         print(f" -> MOVB loaded R1={hex(registers[1])}, R2={hex(registers[2])}")
         pc += 1
+        state = "FETCH"
 
-    # Instrucción: STB <direccion>
-    # Guarda R3 y R4 en memoria (salida de cifrado/descifrado)
-    elif opcode == ISA["STB"]:
-        base_addr = instr[1]
-        data_memory[base_addr] = registers[3]
-        data_memory[base_addr + 1] = registers[4]
+    elif state == "EXEC_STB":
+        addr = tmp["addr"]
+        data_memory[addr] = registers[3]
+        data_memory[addr + 1] = registers[4]
         print(f" -> STB saved R3={hex(registers[3])}, R4={hex(registers[4])}")
         pc += 1
+        state = "FETCH"
 
-    # Instrucción: ENC32 <key_id>
-    # Cifra 64 bits (R1 y R2) con la clave vault[key_id], resultado en R3 y R4
-    elif opcode == ISA["ENC32"]:
-        kid = instr[1]
-        delta = 0x9e3779b9  # Constante mágica del algoritmo TEA
-        sum_ = 0
-        v0 = int(registers[1])
-        v1 = int(registers[2])
-        key = vault[kid]
-        print(f" -> ENC32 START: v0={hex(v0)}, v1={hex(v1)}")
-        for _ in range(32):  # 32 rondas del algoritmo TEA
+    elif state == "ENC_LOOP":
+        delta = 0x9e3779b9
+        v0 = tmp["v0"]
+        v1 = tmp["v1"]
+        key = tmp["key"]
+        sum_ = tmp["sum"]
+
+        if tmp["mode"] == "ENC":
             sum_ = (sum_ + delta) & 0xFFFFFFFF
             v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
             v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-        registers[3], registers[4] = v0, v1
-        print(f" -> ENC32 END: R3={hex(v0)}, R4={hex(v1)}")
-        pc += 1
-
-    # Instrucción: DEC32 <key_id>
-    # Descifra 64 bits (R1 y R2) con la clave vault[key_id], resultado en R3 y R4
-    elif opcode == ISA["DEC32"]:
-        kid = instr[1]
-        delta = 0x9e3779b9
-        sum_ = (delta * 32) & 0xFFFFFFFF
-        v0 = int(registers[1])
-        v1 = int(registers[2])
-        key = vault[kid]
-        print(f" -> DEC32 START: v0={hex(v0)}, v1={hex(v1)}")
-        for _ in range(32):  # 32 rondas inversas de TEA
+            tmp["sum"] = sum_
+        else:  # DEC
             v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
             v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            sum_ = (sum_ - delta) & 0xFFFFFFFF
-        registers[3], registers[4] = v0, v1
-        print(f" -> DEC32 END: R3={hex(v0)}, R4={hex(v1)}")
-        pc += 1
+            tmp["sum"] = (sum_ - delta) & 0xFFFFFFFF
 
-    # Instrucción: HALT
-    # Detiene la ejecución
-    elif opcode == ISA["HALT"]:
-        print(" -> HALT encountered")
-        halted = True
+        tmp["v0"] = v0
+        tmp["v1"] = v1
+        tmp["rounds"] += 1
 
-    # Instrucción no reconocida
-    else:
-        raise Exception(f"Unknown opcode: {opcode}")
+        if tmp["rounds"] >= 32:
+            registers[3] = v0
+            registers[4] = v1
+            label = "ENC32" if tmp["mode"] == "ENC" else "DEC32"
+            print(f" -> {label} END: R3={hex(v0)}, R4={hex(v1)}")
+            pc += 1
+            state = "FETCH"
 
-# ------------------------------------------
-# Bucle de ejecución del procesador
-# ------------------------------------------
+def reset():
+    global pc, halted, state, ir, tmp
+    pc = 0
+    halted = False
+    state = "FETCH"
+    ir = None
+    tmp = {
+        "opcode": None,
+        "args": None,
+        "v0": None,
+        "v1": None,
+        "sum": None,
+        "rounds": 0,
+        "key": None,
+        "mode": None,
+    }
+
+# Ejecuta el procesador hasta que se detenga
 def run():
     while not halted:
-        execute_instruction()
+        step()
