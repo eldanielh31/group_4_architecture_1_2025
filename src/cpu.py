@@ -5,6 +5,8 @@ registers = [0] * 16
 data_memory = [0] * 1024
 instr_memory = []
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
+cycles = 0
+instructions = 0
 
 # Registros internos del multiciclo
 pc = 0
@@ -29,7 +31,8 @@ def load_program(program):
     instr_memory = program
 
 def step():
-    global pc, halted, state, ir, tmp
+    global pc, halted, state, ir, tmp, cycles, instructions 
+    cycles += 1
 
     if state == "FETCH":
         if pc >= len(instr_memory):
@@ -47,6 +50,7 @@ def step():
             kid, *key_parts = tmp["args"]
             vault[kid] = key_parts
             pc += 1
+            instructions += 1
             state = "FETCH"
 
         elif opcode == ISA["MOVB"]:
@@ -89,6 +93,7 @@ def step():
         registers[2] = int(data_memory[addr + 1])
         print(f" -> MOVB loaded R1={hex(registers[1])}, R2={hex(registers[2])}")
         pc += 1
+        instructions += 1
         state = "FETCH"
 
     elif state == "EXEC_STB":
@@ -97,6 +102,7 @@ def step():
         data_memory[addr + 1] = registers[4]
         print(f" -> STB saved R3={hex(registers[3])}, R4={hex(registers[4])}")
         pc += 1
+        instructions += 1
         state = "FETCH"
 
     elif state == "ENC_LOOP":
@@ -126,14 +132,17 @@ def step():
             label = "ENC32" if tmp["mode"] == "ENC" else "DEC32"
             print(f" -> {label} END: R3={hex(v0)}, R4={hex(v1)}")
             pc += 1
+            instructions += 1
             state = "FETCH"
 
 def reset():
-    global pc, halted, state, ir, tmp
+    global pc, halted, state, ir, tmp, cycles, instructions
     pc = 0
     halted = False
     state = "FETCH"
     ir = None
+    cycles = 0
+    instructions = 0
     tmp = {
         "opcode": None,
         "args": None,
@@ -149,3 +158,9 @@ def reset():
 def run():
     while not halted:
         step()
+    print(f" -> Total cycles: {cycles}")
+    print(f" -> Total instructions: {instructions}")
+    if instructions > 0:
+        cpi = cycles / instructions
+        print(f" -> CPI: {cpi:.2f}")
+
