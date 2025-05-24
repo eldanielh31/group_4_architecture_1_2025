@@ -2,150 +2,163 @@ from isa import ISA
 
 # Estado del procesador
 registers = [0] * 16
-data_memory = [0] * 1024
 instr_memory = []
+data_memory = [0] * 1024
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
-
-# Registros internos del multiciclo
-pc = 0
-ir = None           # Instruction Register
-state = "FETCH"     # Estado actual de la máquina de estados
 halted = False
 
-# Variables temporales para instrucciones complejas
-tmp = {
-    "opcode": None,
-    "args": None,
-    "v0": None,
-    "v1": None,
-    "sum": None,
-    "rounds": 0,
-    "key": None,
-    "mode": None,  # "ENC" o "DEC"
-}
+# Registros inter-etapas del pipeline
+IF_ID = {}
+ID_EX = {}
+EX_MEM = {}
+MEM_WB = {}
+
+pc = 0
+
 
 def load_program(program):
     global instr_memory
     instr_memory = program
 
-def step():
-    global pc, halted, state, ir, tmp
 
-    if state == "FETCH":
-        if pc >= len(instr_memory):
-            halted = True
-            return
-        ir = instr_memory[pc]
-        tmp["opcode"] = ir[0]
-        tmp["args"] = ir[1:]
-        state = "DECODE"
-
-    elif state == "DECODE":
-        opcode = tmp["opcode"]
-
-        if opcode == ISA["LOADK"]:
-            kid, *key_parts = tmp["args"]
-            vault[kid] = key_parts
-            pc += 1
-            state = "FETCH"
-
-        elif opcode == ISA["MOVB"]:
-            tmp["addr"] = tmp["args"][0]
-            state = "EXEC_MOVB"
-
-        elif opcode == ISA["STB"]:
-            tmp["addr"] = tmp["args"][0]
-            state = "EXEC_STB"
-
-        elif opcode == ISA["ENC32"]:
-            kid = tmp["args"][0]
-            tmp["key"] = vault[kid]
-            tmp["sum"] = 0
-            tmp["rounds"] = 0
-            tmp["v0"] = registers[1]
-            tmp["v1"] = registers[2]
-            tmp["mode"] = "ENC"
-            print(f" -> ENC32 START: v0={hex(tmp['v0'])}, v1={hex(tmp['v1'])}")
-            state = "ENC_LOOP"
-
-        elif opcode == ISA["DEC32"]:
-            kid = tmp["args"][0]
-            tmp["key"] = vault[kid]
-            tmp["sum"] = (0x9e3779b9 * 32) & 0xFFFFFFFF
-            tmp["rounds"] = 0
-            tmp["v0"] = registers[1]
-            tmp["v1"] = registers[2]
-            tmp["mode"] = "DEC"
-            print(f" -> DEC32 START: v0={hex(tmp['v0'])}, v1={hex(tmp['v1'])}")
-            state = "ENC_LOOP"
-
-        elif opcode == ISA["HALT"]:
-            print(" -> HALT encountered")
-            halted = True
-
-    elif state == "EXEC_MOVB":
-        addr = tmp["addr"]
-        registers[1] = int(data_memory[addr])
-        registers[2] = int(data_memory[addr + 1])
-        print(f" -> MOVB loaded R1={hex(registers[1])}, R2={hex(registers[2])}")
+def fetch():
+    global pc, IF_ID
+    if pc < len(instr_memory):
+        IF_ID = {'instr': instr_memory[pc], 'pc': pc}
+        print(f"[IF] Fetched instruction at PC={pc}: {instr_memory[pc]}")
         pc += 1
-        state = "FETCH"
+    else:
+        IF_ID = {'instr': None}
 
-    elif state == "EXEC_STB":
-        addr = tmp["addr"]
+
+def decode():
+    global IF_ID, ID_EX, EX_MEM, MEM_WB
+    instr = IF_ID.get('instr')
+    if instr:
+        opcode = instr[0]
+        args = instr[1:]
+
+        # Forwarding para evitar RAW hazard con resultado de EX_MEM o MEM_WB
+        for i in range(len(args)):
+            if isinstance(args[i], int) and 0 <= args[i] < len(registers):
+                if EX_MEM.get('dest') == args[i]:
+                    args[i] = EX_MEM.get('result') if not isinstance(EX_MEM.get('result'), tuple) else EX_MEM.get('result')[0]
+                    print(f"[FWD] Forwarded from EX_MEM to argument {i}")
+                elif MEM_WB.get('dest') == args[i]:
+                    args[i] = MEM_WB.get('result') if not isinstance(MEM_WB.get('result'), tuple) else MEM_WB.get('result')[0]
+                    print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+
+        ID_EX = {'opcode': opcode, 'args': args, 'instr': instr}
+        print(f"[ID] Decoded instruction: opcode={opcode}, args={args}")
+    else:
+        ID_EX = {'opcode': None}
+
+
+def execute():
+    global ID_EX, EX_MEM
+    opcode = ID_EX.get('opcode')
+    args = ID_EX.get('args')
+    EX_MEM = {'opcode': opcode, 'args': args, 'result': None}
+
+    if opcode == ISA['ADD']:
+        EX_MEM['result'] = registers[args[0]] + registers[args[1]]
+        EX_MEM['dest'] = args[2]
+    elif opcode == ISA['SUB']:
+        EX_MEM['result'] = registers[args[0]] - registers[args[1]]
+        EX_MEM['dest'] = args[2]
+    elif opcode == ISA['XOR']:
+        EX_MEM['result'] = registers[args[0]] ^ registers[args[1]]
+        EX_MEM['dest'] = args[2]
+    elif opcode == ISA['SHL']:
+        EX_MEM['result'] = registers[args[0]] << args[1]
+        EX_MEM['dest'] = args[0]
+    elif opcode == ISA['SHR']:
+        EX_MEM['result'] = registers[args[0]] >> args[1]
+        EX_MEM['dest'] = args[0]
+    elif opcode == ISA['ENC32']:
+        kid = args[0]
+        key = vault[kid]
+        v0 = registers[1]
+        v1 = registers[2]
+        sum = 0
+        delta = 0x9e3779b9
+        for _ in range(32):
+            sum = (sum + delta) & 0xFFFFFFFF
+            v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
+            v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
+        EX_MEM['result'] = (v0, v1)
+        EX_MEM['dest'] = (3, 4)
+        print(f"[EX] ENC32 result: v0={v0}, v1={v1}")
+    elif opcode == ISA['DEC32']:
+        kid = args[0]
+        key = vault[kid]
+        v0 = registers[1]
+        v1 = registers[2]
+        delta = 0x9e3779b9
+        sum = (delta * 32) & 0xFFFFFFFF
+        for _ in range(32):
+            v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
+            v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
+            sum = (sum - delta) & 0xFFFFFFFF
+        EX_MEM['result'] = (v0, v1)
+        EX_MEM['dest'] = (3, 4)
+        print(f"[EX] DEC32 result: v0={v0}, v1={v1}")
+    elif opcode == ISA['MOVB']:
+        addr = args[0]
+        registers[1] = data_memory[addr]
+        registers[2] = data_memory[addr + 1]
+        print(f"[EX] MOVB loaded R1 = {registers[1]:08X}, R2 = {registers[2]:08X} from Mem[{addr}] and Mem[{addr + 1}]")
+    elif opcode == ISA['HALT']:
+        EX_MEM['halt'] = True
+
+
+def memory_access():
+    global EX_MEM, MEM_WB
+    opcode = EX_MEM.get('opcode')
+    MEM_WB = {'opcode': opcode, 'result': EX_MEM.get('result'), 'dest': EX_MEM.get('dest')}
+
+    if opcode == ISA['LD']:
+        addr = EX_MEM['args'][1]
+        MEM_WB['result'] = data_memory[addr]
+        MEM_WB['dest'] = EX_MEM['args'][0]
+    elif opcode == ISA['ST']:
+        addr = EX_MEM['args'][1]
+        data_memory[addr] = registers[EX_MEM['args'][0]]
+    elif opcode == ISA['STB']:
+        addr = EX_MEM['args'][0]
         data_memory[addr] = registers[3]
         data_memory[addr + 1] = registers[4]
-        print(f" -> STB saved R3={hex(registers[3])}, R4={hex(registers[4])}")
-        pc += 1
-        state = "FETCH"
+        print(f"[MEM] STB -> Mem[{addr}] = {registers[3]:08X}, Mem[{addr+1}] = {registers[4]:08X}")
 
-    elif state == "ENC_LOOP":
-        delta = 0x9e3779b9
-        v0 = tmp["v0"]
-        v1 = tmp["v1"]
-        key = tmp["key"]
-        sum_ = tmp["sum"]
 
-        if tmp["mode"] == "ENC":
-            sum_ = (sum_ + delta) & 0xFFFFFFFF
-            v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-            tmp["sum"] = sum_
-        else:  # DEC
-            v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-            v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            tmp["sum"] = (sum_ - delta) & 0xFFFFFFFF
+def write_back():
+    global MEM_WB, halted
+    if MEM_WB.get('opcode') == ISA['HALT'] or MEM_WB.get('halt'):
+        halted = True
+        print("[WB] HALT encountered. Stopping execution.")
+        return
 
-        tmp["v0"] = v0
-        tmp["v1"] = v1
-        tmp["rounds"] += 1
+    dest = MEM_WB.get('dest')
+    result = MEM_WB.get('result')
+    if dest is not None:
+        if isinstance(dest, tuple):
+            registers[dest[0]] = result[0]
+            registers[dest[1]] = result[1]
+            print(f"[WB] Write to R{dest[0]} = {result[0]}, R{dest[1]} = {result[1]}")
+        else:
+            registers[dest] = result
+            print(f"[WB] Write to R{dest} = {result}")
 
-        if tmp["rounds"] >= 32:
-            registers[3] = v0
-            registers[4] = v1
-            label = "ENC32" if tmp["mode"] == "ENC" else "DEC32"
-            print(f" -> {label} END: R3={hex(v0)}, R4={hex(v1)}")
-            pc += 1
-            state = "FETCH"
 
-def reset():
-    global pc, halted, state, ir, tmp
-    pc = 0
-    halted = False
-    state = "FETCH"
-    ir = None
-    tmp = {
-        "opcode": None,
-        "args": None,
-        "v0": None,
-        "v1": None,
-        "sum": None,
-        "rounds": 0,
-        "key": None,
-        "mode": None,
-    }
+def step():
+    write_back()
+    memory_access()
+    execute()
+    decode()
+    fetch()
 
-# Ejecuta el procesador hasta que se detenga
+
 def run():
+    global halted
     while not halted:
         step()
