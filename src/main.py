@@ -48,8 +48,10 @@ for i in range(0, 24, 2):
     v1 = cpu.data_memory[i+1]
     print(f"Mem[{i:02}] = {v0:08X}, Mem[{i+1:02}] = {v1:08X}")
     
-# Mostrar texto desencriptado
-v0 = cpu.data_memory[20]
-v1 = cpu.data_memory[21]
-text = v0.to_bytes(4, 'big') + v1.to_bytes(4, 'big')
-print("Texto desencriptado:", text.decode('utf-8', errors='replace'))
+# Mostrar texto completo descifrado desde Mem[20] hasta Mem[23]
+result_bytes = b''
+for i in range(20, 24):
+    result_bytes += cpu.data_memory[i].to_bytes(4, 'big')
+
+print("Texto desencriptado:", result_bytes.decode('utf-8', errors='replace'))
+

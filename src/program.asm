@@ -20,5 +20,14 @@ DEC32 0
 ; Guardar resultado descifrado en memoria[20] y memoria[21]
 STB 20
 
+; Segundo bloque: cifrar y descifrar "do"
+MOVB 2
+ENC32 0
+STB 12
+
+MOVB 12
+DEC32 0
+STB 22
+
 ; Finalizar ejecución
 HALT
