@@ -22,7 +22,7 @@ def str_to_blocks(text):
 texto_original = "Hola mundo"
 bloques = str_to_blocks(texto_original)
 
-for i, (v0, v1) in enumerate(bloques):
+for i, (v0, v1) in enumerate(bloques):  
     cpu.data_memory[i * 2] = v0
     cpu.data_memory[i * 2 + 1] = v1
 

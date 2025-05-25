@@ -14,11 +14,20 @@ EX_MEM = {}
 MEM_WB = {}
 
 pc = 0
+cycle_count = 0
 
 
 def load_program(program):
     global instr_memory
     instr_memory = program
+
+
+def print_cpu_state():
+    print("\n--- CPU STATE ---")
+    print(f"PC: {pc}")
+    print(f"Registers: {[f'R{i}={r:08X}' for i, r in enumerate(registers)]}")
+    print(f"Vault: {vault}")
+    print("---------------\n")
 
 
 def fetch():
@@ -38,7 +47,6 @@ def decode():
         opcode = instr[0]
         args = instr[1:]
 
-        # Forwarding para evitar RAW hazard con resultado de EX_MEM o MEM_WB
         for i in range(len(args)):
             if isinstance(args[i], int) and 0 <= args[i] < len(registers):
                 if EX_MEM.get('dest') == args[i]:
@@ -151,11 +159,15 @@ def write_back():
 
 
 def step():
+    global cycle_count
+    print(f"\n========== Cycle {cycle_count} ==========")
     write_back()
     memory_access()
     execute()
     decode()
     fetch()
+    print_cpu_state()
+    cycle_count += 1
 
 
 def run():
