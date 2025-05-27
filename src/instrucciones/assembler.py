@@ -24,7 +24,8 @@ def assemble(lines, procesador):
             elif instr in ["MOVB", "ENC32", "DEC32", "STB"]:
                 if len(parts) != 2:
                     raise ValueError(f"{instr} expects 1 argument")
-                    program.append([ISA[instr], int(parts[1])])
+                instance = ISA[instr](int(parts[1]), procesador)
+                program.append(instance)
                
 
             elif instr in ["ADD", "SUB", "XOR", "AND", "OR"]:

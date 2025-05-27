@@ -92,15 +92,20 @@ class Procesador:
 
             # FETCH
             if self.PC < len(self.IM.instrucciones) and not self.halted:
-                execute = True
-                self.pipeline_locations[0] = f"Instrucción {self.PC}"
-                self.regIM.instruccion = self.IM.instrucciones[self.PC]
-                self.PC += 1
-            if self.IM.instrucciones[self.PC] == "HALT":
-                self.halted = True
-                self.PC += 1
+                instr = self.IM.instrucciones[self.PC]
+
+                # Verifica si es "HALT" ANTES de incrementar PC
+                if isinstance(instr, str) and instr.strip().upper() == "HALT":
+                    self.halted = True
+                    print("HALT detectado, se detendrá el fetch.")
+                else:
+                    self.regIM.instruccion = instr
+                    self.pipeline_locations[0] = f"Instrucción {self.PC}"
+                    self.PC += 1
+                    execute = True
             else:
                 self.pipeline_locations[0] = ""
+
 
             # Calcular métricas de rendimiento
             elapsed_time = self.time  # Tiempo total en segundos

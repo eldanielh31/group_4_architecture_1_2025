@@ -1,5 +1,1 @@
-ADD R3, R0, R1
-SUB R1, R9, R1
-HALT
-XOR R0, R1, R2
-
+MOVB 0
