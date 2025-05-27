@@ -6,6 +6,7 @@ from elementosArquitectonicos.memoriaDatos import memoriaDatos
 from elementosArquitectonicos.memoriaInstrucciones import memoriaInstrucciones
 from elementosArquitectonicos.archivoRegistros import archivoRegistros
 from elementosNoArquitectonicos.registro import Registro
+from instrucciones.isa import ISA
 
 class Procesador:
     def __init__(self, interval=1):  # Intervalo predeterminado de 1 segundo
@@ -25,9 +26,10 @@ class Procesador:
         self.pipeline_locations = ["", "", "", "", ""]
         self.total_cycles = 0
         self.instructions_completed = 0
+        self.halted = False
 
-    def cargarInstrucciones(self, instruccion):
-        self.IM.instrucciones.append(instruccion)
+    def cargarInstrucciones(self, program):
+        self.IM.instrucciones = program
 
     def clear_pipeline(self):
         """Limpia las etapas DECODE y EXECUTE del pipeline tras un salto."""
@@ -77,7 +79,7 @@ class Procesador:
             # DECODE
             if self.regIM.instruccion is not None:
                 execute = True
-                self.regIM.instruccion.ejecutar()
+                #self.regIM.instruccion.ejecutar()
                 self.pipeline_locations[1] = f"Instrucción {self.PC - 1}"
                 self.regRF.instruccion = self.regIM.instruccion
                 self.regIM.clear()
@@ -88,6 +90,7 @@ class Procesador:
             if self.PC < len(self.IM.instrucciones):
                 execute = True
                 self.pipeline_locations[0] = f"Instrucción {self.PC}"
+                print(f"Instrucción {self.IM.instrucciones[self.PC]}")
                 self.regIM.instruccion = self.IM.instrucciones[self.PC]
                 self.PC += 1
             else:

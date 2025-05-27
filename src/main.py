@@ -10,6 +10,7 @@ from instrucciones.or_ import Or
 from instrucciones.mov import Mov
 
 from procesador.procesador import Procesador
+from instrucciones.assembler import assemble
 
 import sys
 
@@ -21,12 +22,15 @@ if __name__ == "__main__":
     procesador = Procesador(interval=interval)
 
     # Configurar registros iniciales
-    procesador.RF.registros[0] = 7
+    procesador.RF.registros[0] = 0
     procesador.RF.registros[1] = 7
+    procesador.RF.registros[2] = 7
     procesador.RF.registros[9] = 5
     procesador.RF.registros[10] = 10
+    
 
     # Cargar instrucciones
+    """
     procesador.cargarInstrucciones(StoreWord(0, -4, 4, procesador))
     procesador.cargarInstrucciones(StoreWord(1, -3, 4, procesador))
     procesador.cargarInstrucciones(BranchEqual(0, 1, 4, procesador))
@@ -37,6 +41,14 @@ if __name__ == "__main__":
     procesador.cargarInstrucciones(And(6, 9, 10, procesador))
     procesador.cargarInstrucciones(Or(7, 9, 10, procesador))
     procesador.cargarInstrucciones(Mov(8, 54, procesador))
+    """
+
+    with open("program.asm") as f:
+        source = f.readlines()
+        program = assemble(source)
+        print(program)
+        procesador.cargarInstrucciones(program)
+    
 
     # Iniciar ejecución del procesador
     procesador.iniciarEjecucion()
