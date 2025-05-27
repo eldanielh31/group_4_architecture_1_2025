@@ -30,6 +30,7 @@ class Procesador:
 
     def cargarInstrucciones(self, program):
         self.IM.instrucciones = program
+        
 
     def clear_pipeline(self):
         """Limpia las etapas DECODE y EXECUTE del pipeline tras un salto."""
@@ -79,7 +80,7 @@ class Procesador:
             # DECODE
             if self.regIM.instruccion is not None:
                 execute = True
-                #self.regIM.instruccion.ejecutar()
+                self.regIM.instruccion.ejecutar()
                 self.pipeline_locations[1] = f"Instrucción {self.PC - 1}"
                 self.regRF.instruccion = self.regIM.instruccion
                 self.regIM.clear()
@@ -90,7 +91,7 @@ class Procesador:
             if self.PC < len(self.IM.instrucciones):
                 execute = True
                 self.pipeline_locations[0] = f"Instrucción {self.PC}"
-                print(f"Instrucción {self.IM.instrucciones[self.PC]}")
+                #print(f"Instrucción {self.IM.instrucciones[self.PC]}")
                 self.regIM.instruccion = self.IM.instrucciones[self.PC]
                 self.PC += 1
             else:

@@ -1,4 +1,4 @@
-class StoreWord:
+class ST:
     def __init__(self, _fuente, _inmediato, _destino, _procesador):
         self.destino = _destino
         self.inmediato = _inmediato

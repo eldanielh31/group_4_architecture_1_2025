@@ -1,4 +1,4 @@
-class Add:
+class ADD:
     def __init__(self, _destino, _registro1, _registro2, _procesador):
         self.destino = _destino
         self.registro1 = _registro1

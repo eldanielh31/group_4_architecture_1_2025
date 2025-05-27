@@ -1,4 +1,4 @@
-class Mov:
+class MOV:
     def __init__(self, _destino,  _inmediate, _procesador):
         self.destino = _destino
         self.inmediate = _inmediate

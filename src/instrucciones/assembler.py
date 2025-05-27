@@ -1,7 +1,7 @@
 from instrucciones.isa import ISA
 
 
-def assemble(lines):
+def assemble(lines, procesador):
     program = []
     for lineno, line in enumerate(lines, 1):
         line = line.strip()
@@ -28,7 +28,8 @@ def assemble(lines):
             elif instr in ["ADD", "SUB", "XOR"]:
                 if len(parts) != 4:
                     raise ValueError(f"{instr} expects 3 arguments")
-                program.append([ISA[instr], int(parts[1][1]), int(parts[2][1]), int(parts[3][1])])
+                instance = ISA[instr](int(parts[1][1:]), int(parts[2][1:]), int(parts[3][1:]), procesador)
+                program.append(instance)
 
             elif instr in ["SHL", "SHR"]:
                 if len(parts) != 3:
@@ -36,10 +37,10 @@ def assemble(lines):
                 program.append([ISA[instr], int(parts[1][1]), int(parts[2])])
 
             elif instr in ["LD", "ST"]:
-                if len(parts) != 3:
+                if len(parts) != 4:
                     raise ValueError(f"{instr} expects 2 arguments")
-                program.append([ISA[instr], int(parts[1][1]), int(parts[2])])
-
+                instance = ISA[instr](int(parts[1][1:]), int(parts[2][1:]), int(parts[3][1:]), procesador)
+                program.append(instance)
             elif instr == "HALT":
                 program.append([ISA[instr]])
 

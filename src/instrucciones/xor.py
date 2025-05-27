@@ -1,4 +1,4 @@
-class SUB:
+class XOR:
     def __init__(self, _destino, _registro1, _registro2, _procesador):
         self.destino = _destino
         self.registro1 = _registro1
@@ -15,8 +15,8 @@ class SUB:
         print(self.procesador.regRF.data)
 
     def instruccion2(self):
-        print("Restando registros")
-        self.procesador.regALU.data = self.procesador.ALU.operar(self.procesador.regRF.data[0], self.procesador.regRF.data[1], 1)
+        print("Aplicando XOR en registros")
+        self.procesador.regALU.data = self.procesador.ALU.operar(self.procesador.regRF.data[0], self.procesador.regRF.data[1], 4)
         print(self.procesador.regALU.data)
 
     def instruccion3(self):
@@ -24,14 +24,15 @@ class SUB:
         self.procesador.RF.registros[self.destino] = self.procesador.regALU.data
         print(str(self.procesador.RF.registros[self.destino]) + " en: " + str(self.destino))
 
-        
 
+
+       
     def ejecutar(self):
         if self.ejecucion:
             fase = self.ejecucion.pop(0)
             fase()
         else:
-            print("No hay más fases para ejecutar en Sub.")
+            print("No hay más fases para ejecutar en Xor.")
 
 
 

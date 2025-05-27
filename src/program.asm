@@ -1,1 +1,3 @@
-Add R1, R0, R2
+ST R0, -4, R0
+ADD R3, R0, R1
+

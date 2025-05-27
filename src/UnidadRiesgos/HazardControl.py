@@ -1,8 +1,9 @@
 
-from instrucciones.add import Add
-from instrucciones.sub import Sub
-from instrucciones.and_ import And
-from instrucciones.or_ import Or
+from instrucciones.add import ADD
+from instrucciones.sub import SUB
+from instrucciones.and_ import AND
+from instrucciones.or_ import OR
+from instrucciones.xor import XOR
 
 class HazardControl:
     def __init__(self, procesador):
@@ -16,7 +17,7 @@ class HazardControl:
 
     def check_forwarding(self, current_instruction):
         """Verifica y aplica forwarding para instrucciones que usan registros."""
-        if not isinstance(current_instruction, (Add, Sub, Or, And)):
+        if not isinstance(current_instruction, (ADD, SUB, OR, AND, XOR)):
             print("No se aplica forwarding: instrucción no es de tipo Add.")
             return  # Por ahora, solo procesamos instrucciones tipo Add
 
@@ -70,7 +71,7 @@ class HazardControl:
 
         # Si hay instrucciones esperando este valor, lo forwardea a ellas
         inst = self.procesador.regRF.instruccion
-        if isinstance(inst, (Add, Sub, Or, And)):
+        if isinstance(inst, (ADD, SUB, OR, AND, XOR)):
             if inst.registro1 == destino and self.procesador.regRF.data[0] is None:
                 print(f"Forwarding R{destino} a registro1 en DECODE.")
                 self.procesador.regRF.data[0] = resultado
