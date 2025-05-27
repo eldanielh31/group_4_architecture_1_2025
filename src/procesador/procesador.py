@@ -56,6 +56,7 @@ class Procesador:
                 self.regDM.instruccion.ejecutar()
                 self.pipeline_locations[4] = "Instrucción escribiendo"
                 self.regDM.clear()
+                self.regALU.clear()
                 self.instructions_completed += 1
             else:
                 self.pipeline_locations[4] = ""
@@ -66,7 +67,6 @@ class Procesador:
                 self.regALU.instruccion.ejecutar()
                 self.pipeline_locations[3] = "Instrucción en memoria"
                 self.regDM.instruccion = self.regALU.instruccion
-                self.regALU.clear()
             else:
                 self.pipeline_locations[3] = ""
 
