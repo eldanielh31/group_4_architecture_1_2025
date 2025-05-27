@@ -46,6 +46,9 @@ class Procesador:
         while execute:
             self.total_cycles += 1
             execute = False
+            if self.halted and all(etapa == "" for etapa in self.pipeline_locations):
+                print("Ejecución detenida tras HALT. Todas las etapas del pipeline están vacías.")
+
 
             # WRITEBACK
             if self.regDM.instruccion is not None:
@@ -88,11 +91,13 @@ class Procesador:
                 self.pipeline_locations[1] = ""
 
             # FETCH
-            if self.PC < len(self.IM.instrucciones):
+            if self.PC < len(self.IM.instrucciones) and not self.halted:
                 execute = True
                 self.pipeline_locations[0] = f"Instrucción {self.PC}"
-                #print(f"Instrucción {self.IM.instrucciones[self.PC]}")
                 self.regIM.instruccion = self.IM.instrucciones[self.PC]
+                self.PC += 1
+            if self.IM.instrucciones[self.PC] == "HALT":
+                self.halted = True
                 self.PC += 1
             else:
                 self.pipeline_locations[0] = ""
@@ -103,6 +108,7 @@ class Procesador:
                 cpi = self.total_cycles / max(1, self.instructions_completed)
                 ipc = self.instructions_completed / max(1, self.total_cycles)
                 clock_rate = self.total_cycles / (elapsed_time * 1e9)  # Clock rate en GHz
+                print("Cycles: ", self.total_cycles)
             else:
                 cpi = ipc = clock_rate = 0
 
