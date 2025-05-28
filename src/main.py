@@ -22,7 +22,7 @@ if __name__ == "__main__":
     procesador = Procesador(interval=interval)
 
     # Configurar registros iniciales
-    procesador.RF.registros[0] = 0
+    procesador.RF.registros[0] = 3
     procesador.RF.registros[1] = 7
     procesador.RF.registros[2] = 6
     procesador.RF.registros[9] = 5
