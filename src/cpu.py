@@ -37,11 +37,9 @@ def print_pipeline_registers():
 
 def fetch():
     global pc, IF_ID
-    # No hagas fetch si EX_MEM indicó un salto
     if 'jumped' in EX_MEM:
         print(f"[IF] Skipped fetch due to jump")
         return
-
     if pc < len(instr_memory):
         IF_ID = {'instr': instr_memory[pc], 'pc': pc}
         print(f"[IF] Fetched instruction at PC={pc}: {instr_memory[pc]}")
@@ -58,12 +56,9 @@ def decode():
 
         val_args = []
         for i, arg in enumerate(args):
-            # Si es un inmediato explícito, como ('#', 5)
             if isinstance(arg, tuple) and arg[0] == '#':
                 val_args.append(arg[1])
-            # Si es un número de registro válido
             elif isinstance(arg, int) and 0 <= arg < len(registers):
-                # Forwarding desde EX_MEM
                 dest = EX_MEM.get('dest')
                 if isinstance(dest, tuple) and arg in dest:
                     idx = dest.index(arg)
@@ -73,7 +68,6 @@ def decode():
                     val_args.append(EX_MEM.get('result'))
                     print(f"[FWD] Forwarded from EX_MEM to argument {i}")
                 else:
-                    # Forwarding desde MEM_WB
                     dest = MEM_WB.get('dest')
                     if isinstance(dest, tuple) and arg in dest:
                         idx = dest.index(arg)
@@ -85,7 +79,6 @@ def decode():
                     else:
                         val_args.append(registers[arg])
             else:
-                # Si no es registro ni inmediato (como dirección absoluta)
                 val_args.append(arg)
 
         ID_EX = {'opcode': opcode, 'args': args, 'val_args': val_args}
@@ -98,14 +91,14 @@ def execute():
     opcode = ID_EX.get('opcode')
     args = ID_EX.get('args')
     val_args = ID_EX.get('val_args')
-    
+
     EX_MEM.clear()
     EX_MEM.update({'opcode': opcode, 'args': args, 'result': None})
-    
+
     print(f"[EX] Executing opcode={opcode}, args={args}, val_args={val_args}")
     if opcode is None:
         return
-    
+
     elif opcode == ISA['MOV']:
         EX_MEM['result'] = val_args[1]
         EX_MEM['dest'] = args[0]
@@ -137,13 +130,15 @@ def execute():
         print(f"[EX] XOR R{args[2]} = {val_args[0]} ^ {val_args[1]}")
 
     elif opcode == ISA['ST']:
-        data_memory[args[1]] = registers[args[0]]
-        print(f"[EX] ST Mem[{args[1]}] = R{args[0]} = {registers[args[0]]}")
+        addr = val_args[1] if isinstance(args[1], tuple) else args[1]
+        data_memory[addr] = registers[args[0]]
+        print(f"[EX] ST Mem[{addr}] = R{args[0]} = {registers[args[0]]}")
 
     elif opcode == ISA['LD']:
-        EX_MEM['result'] = data_memory[args[1]]
+        addr = val_args[1] if isinstance(args[1], tuple) else args[1]
+        EX_MEM['result'] = data_memory[addr]
         EX_MEM['dest'] = args[0]
-        print(f"[EX] LD R{args[0]} = Mem[{args[1]}] = {data_memory[args[1]]}")
+        print(f"[EX] LD R{args[0]} = Mem[{addr}] = {data_memory[addr]}")
 
     elif opcode == ISA['MOVB']:
         addr = val_args[0] if isinstance(val_args[0], int) else 0

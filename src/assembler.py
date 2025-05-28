@@ -1,14 +1,14 @@
-
 from isa import ISA
 
 def parse_register(s):
+    s = s.strip()
     if s.startswith('R'):
         reg = int(s[1:])
         if not (0 <= reg < 16):
             raise ValueError(f"Invalid register R{reg}")
         return reg
     elif s.startswith('#'):
-        return int(s[1:])
+        return ('#', int(s[1:]))
     elif s.startswith('K'):
         return int(s[1:])
     else:
@@ -57,17 +57,13 @@ def assemble(lines):
             elif instr in ["MOVB", "ENC32", "DEC32", "STB"]:
                 output.append([ISA[instr], parse_register(parts[1])])
             elif instr in ["ADD", "SUB", "XOR", "SHL", "SHR"]:
-                output.append([ISA[instr], parse_register(parts[1]), parse_register(parts[2]), parse_register(parts[3])])
+                output.append([ISA[instr]] + [parse_register(p) for p in parts[1:4]])
             elif instr in ["LD", "ST"]:
-                output.append([ISA[instr], parse_register(parts[1]), parse_register(parts[2])])
+                output.append([ISA[instr]] + [parse_register(p) for p in parts[1:3]])
             elif instr == "MOV":
                 dest = parse_register(parts[1])
-                if parts[2].startswith('#'):
-                    value = int(parts[2][1:])
-                    output.append([ISA[instr], dest, ('#', value)])
-                else:
-                    value = parse_register(parts[2])
-                    output.append([ISA[instr], dest, value])
+                value = parse_register(parts[2])
+                output.append([ISA[instr], dest, value])
             elif instr == "JMP":
                 target = label_table[parts[1]]
                 output.append([ISA[instr], target])
