@@ -29,11 +29,14 @@ for i, (v0, v1) in enumerate(bloques):
 # ------------------------------------------
 # Cargar y ensamblar el programa
 # ------------------------------------------
-with open("program.asm") as f:
+with open("test.asm") as f:
+# with open("program.asm") as f:
     source = f.readlines()
 program = assemble(source)
 cpu.load_program(program)
 
+# cpu.data_memory[0] = 0x486F6C61  # "Hola"
+# cpu.data_memory[1] = 0x206D756E  # " mun"
 # ------------------------------------------
 # Ejecutar el programa con CPU en pipeline
 # ------------------------------------------

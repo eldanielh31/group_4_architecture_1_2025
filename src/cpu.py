@@ -16,11 +16,9 @@ MEM_WB = {}
 pc = 0
 cycle_count = 0
 
-
 def load_program(program):
     global instr_memory
     instr_memory = program
-
 
 def print_cpu_state():
     print("\n--- CPU STATE ---")
@@ -29,16 +27,27 @@ def print_cpu_state():
     print(f"Vault: {vault}")
     print("---------------\n")
 
+def print_pipeline_registers():
+    print("--- Pipeline Registers ---")
+    print(f"IF/ID:  {IF_ID}")
+    print(f"ID/EX:  {ID_EX}")
+    print(f"EX/MEM:{EX_MEM}")
+    print(f"MEM/WB:{MEM_WB}")
+    print("--------------------------\n")
 
 def fetch():
     global pc, IF_ID
+    # No hagas fetch si EX_MEM indicó un salto
+    if 'jumped' in EX_MEM:
+        print(f"[IF] Skipped fetch due to jump")
+        return
+
     if pc < len(instr_memory):
         IF_ID = {'instr': instr_memory[pc], 'pc': pc}
         print(f"[IF] Fetched instruction at PC={pc}: {instr_memory[pc]}")
         pc += 1
     else:
         IF_ID = {'instr': None}
-
 
 def decode():
     global IF_ID, ID_EX, EX_MEM, MEM_WB
@@ -47,100 +56,165 @@ def decode():
         opcode = instr[0]
         args = instr[1:]
 
-        for i in range(len(args)):
-            if isinstance(args[i], int) and 0 <= args[i] < len(registers):
-                if EX_MEM.get('dest') == args[i]:
-                    args[i] = EX_MEM.get('result') if not isinstance(EX_MEM.get('result'), tuple) else EX_MEM.get('result')[0]
+        val_args = []
+        for i, arg in enumerate(args):
+            # Si es un inmediato explícito, como ('#', 5)
+            if isinstance(arg, tuple) and arg[0] == '#':
+                val_args.append(arg[1])
+            # Si es un número de registro válido
+            elif isinstance(arg, int) and 0 <= arg < len(registers):
+                # Forwarding desde EX_MEM
+                dest = EX_MEM.get('dest')
+                if isinstance(dest, tuple) and arg in dest:
+                    idx = dest.index(arg)
+                    val_args.append(EX_MEM.get('result')[idx])
                     print(f"[FWD] Forwarded from EX_MEM to argument {i}")
-                elif MEM_WB.get('dest') == args[i]:
-                    args[i] = MEM_WB.get('result') if not isinstance(MEM_WB.get('result'), tuple) else MEM_WB.get('result')[0]
-                    print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+                elif dest == arg:
+                    val_args.append(EX_MEM.get('result'))
+                    print(f"[FWD] Forwarded from EX_MEM to argument {i}")
+                else:
+                    # Forwarding desde MEM_WB
+                    dest = MEM_WB.get('dest')
+                    if isinstance(dest, tuple) and arg in dest:
+                        idx = dest.index(arg)
+                        val_args.append(MEM_WB.get('result')[idx])
+                        print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+                    elif dest == arg:
+                        val_args.append(MEM_WB.get('result'))
+                        print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+                    else:
+                        val_args.append(registers[arg])
+            else:
+                # Si no es registro ni inmediato (como dirección absoluta)
+                val_args.append(arg)
 
-        ID_EX = {'opcode': opcode, 'args': args, 'instr': instr}
-        print(f"[ID] Decoded instruction: opcode={opcode}, args={args}")
+        ID_EX = {'opcode': opcode, 'args': args, 'val_args': val_args}
+        print(f"[ID] Decoded instruction: opcode={opcode}, args={args}, val_args={val_args}")
     else:
         ID_EX = {'opcode': None}
 
-
 def execute():
-    global ID_EX, EX_MEM
+    global ID_EX, EX_MEM, pc
     opcode = ID_EX.get('opcode')
     args = ID_EX.get('args')
-    EX_MEM = {'opcode': opcode, 'args': args, 'result': None}
+    val_args = ID_EX.get('val_args')
+    
+    EX_MEM.clear()
+    EX_MEM.update({'opcode': opcode, 'args': args, 'result': None})
+    
+    print(f"[EX] Executing opcode={opcode}, args={args}, val_args={val_args}")
+    if opcode is None:
+        return
+    
+    elif opcode == ISA['MOV']:
+        EX_MEM['result'] = val_args[1]
+        EX_MEM['dest'] = args[0]
+        print(f"[EX] MOV R{args[0]} = {val_args[1]}")
 
-    if opcode == ISA['ADD']:
-        EX_MEM['result'] = registers[args[0]] + registers[args[1]]
+    elif opcode == ISA['ADD']:
+        EX_MEM['result'] = val_args[0] + val_args[1]
         EX_MEM['dest'] = args[2]
+        print(f"[EX] ADD R{args[2]} = {val_args[0]} + {val_args[1]}")
+
     elif opcode == ISA['SUB']:
-        EX_MEM['result'] = registers[args[0]] - registers[args[1]]
+        EX_MEM['result'] = val_args[0] - val_args[1]
         EX_MEM['dest'] = args[2]
-    elif opcode == ISA['XOR']:
-        EX_MEM['result'] = registers[args[0]] ^ registers[args[1]]
-        EX_MEM['dest'] = args[2]
-    elif opcode == ISA['SHL']:
-        EX_MEM['result'] = registers[args[0]] << args[1]
-        EX_MEM['dest'] = args[0]
+        print(f"[EX] SUB R{args[2]} = {val_args[0]} - {val_args[1]}")
+
     elif opcode == ISA['SHR']:
-        EX_MEM['result'] = registers[args[0]] >> args[1]
+        EX_MEM['result'] = val_args[0] >> val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] SHR R{args[2]} = {val_args[0]} >> {val_args[1]}")
+
+    elif opcode == ISA['SHL']:
+        EX_MEM['result'] = val_args[0] << val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] SHL R{args[2]} = {val_args[0]} << {val_args[1]}")
+
+    elif opcode == ISA['XOR']:
+        EX_MEM['result'] = val_args[0] ^ val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] XOR R{args[2]} = {val_args[0]} ^ {val_args[1]}")
+
+    elif opcode == ISA['ST']:
+        data_memory[args[1]] = registers[args[0]]
+        print(f"[EX] ST Mem[{args[1]}] = R{args[0]} = {registers[args[0]]}")
+
+    elif opcode == ISA['LD']:
+        EX_MEM['result'] = data_memory[args[1]]
         EX_MEM['dest'] = args[0]
-    elif opcode == ISA['ENC32']:
-        kid = args[0]
-        key = vault[kid]
-        v0 = registers[1]
-        v1 = registers[2]
-        sum = 0
-        delta = 0x9e3779b9
-        for _ in range(32):
-            sum = (sum + delta) & 0xFFFFFFFF
-            v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-        EX_MEM['result'] = (v0, v1)
-        EX_MEM['dest'] = (3, 4)
-        print(f"[EX] ENC32 result: v0={v0}, v1={v1}")
-    elif opcode == ISA['DEC32']:
-        kid = args[0]
-        key = vault[kid]
-        v0 = registers[1]
-        v1 = registers[2]
-        delta = 0x9e3779b9
-        sum = (delta * 32) & 0xFFFFFFFF
-        for _ in range(32):
-            v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-            v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            sum = (sum - delta) & 0xFFFFFFFF
-        EX_MEM['result'] = (v0, v1)
-        EX_MEM['dest'] = (3, 4)
-        print(f"[EX] DEC32 result: v0={v0}, v1={v1}")
+        print(f"[EX] LD R{args[0]} = Mem[{args[1]}] = {data_memory[args[1]]}")
+
     elif opcode == ISA['MOVB']:
-        addr = args[0]
+        addr = val_args[0] if isinstance(val_args[0], int) else 0
+        if addr < 0 or addr + 1 >= len(data_memory):
+            print(f"[EX] MOVB error: invalid memory address {addr}")
+            EX_MEM['halt'] = True
+            return
         registers[1] = data_memory[addr]
         registers[2] = data_memory[addr + 1]
         print(f"[EX] MOVB loaded R1 = {registers[1]:08X}, R2 = {registers[2]:08X} from Mem[{addr}] and Mem[{addr + 1}]")
-    elif opcode == ISA['HALT']:
-        EX_MEM['halt'] = True
 
-
-def memory_access():
-    global EX_MEM, MEM_WB
-    opcode = EX_MEM.get('opcode')
-    MEM_WB = {'opcode': opcode, 'result': EX_MEM.get('result'), 'dest': EX_MEM.get('dest')}
-
-    if opcode == ISA['LD']:
-        addr = EX_MEM['args'][1]
-        MEM_WB['result'] = data_memory[addr]
-        MEM_WB['dest'] = EX_MEM['args'][0]
-    elif opcode == ISA['ST']:
-        addr = EX_MEM['args'][1]
-        data_memory[addr] = registers[EX_MEM['args'][0]]
     elif opcode == ISA['STB']:
-        addr = EX_MEM['args'][0]
+        addr = val_args[0]
         data_memory[addr] = registers[3]
         data_memory[addr + 1] = registers[4]
-        print(f"[MEM] STB -> Mem[{addr}] = {registers[3]:08X}, Mem[{addr+1}] = {registers[4]:08X}")
+        print(f"[EX] STB -> Mem[{addr}] = {registers[3]:08X}, Mem[{addr+1}] = {registers[4]:08X}")
 
+    elif opcode == ISA['LOADK']:
+        kid = args[0]
+        if 0 <= kid <= 3:
+            vault[kid] = args[1:5]
+            print(f"[EX] LOADK -> Vault[{kid}] = {[f'{v:08X}' for v in vault[kid]]}")
+        else:
+            print(f"[EX] LOADK failed: invalid vault id {kid}")
+
+    elif opcode == ISA['JMP']:
+        pc = args[0]
+        IF_ID.clear()
+        ID_EX.clear()
+        EX_MEM.clear()
+        EX_MEM['jumped'] = True
+        print(f"[EX] JMP to PC = {pc}")
+
+    elif opcode == ISA['BEQ']:
+        val1 = val_args[0]
+        val2 = val_args[1]
+        if val1 == val2:
+            pc = args[2]
+            IF_ID.clear()
+            ID_EX.clear()
+            EX_MEM.clear()
+            EX_MEM['jumped'] = True
+            print(f"[EX] BEQ taken: R{args[0]} == R{args[1]} -> PC = {pc}")
+        else:
+            print(f"[EX] BEQ not taken: R{args[0]} = {val1}, R{args[1]} = {val2}")
+
+    elif opcode == ISA['BNE']:
+        if registers[args[0]] != registers[args[1]]:
+            pc = args[2]
+            IF_ID.clear()
+            ID_EX.clear()
+            EX_MEM.clear()
+            EX_MEM['jumped'] = True
+            print(f"[EX] BNE taken to PC = {pc}")
+        else:
+            print(f"[EX] BNE not taken: R{args[0]} == R{args[1]}")
+
+    elif opcode == ISA['HALT']:
+        EX_MEM['halt'] = True
+        print("[EX] HALT encountered")
+
+    elif opcode == ISA['NOP']:
+        print("[EX] NOP (no operation)")
+
+def memory_access():
+    global MEM_WB
+    MEM_WB.clear()
+    MEM_WB.update(EX_MEM)
 
 def write_back():
-    global MEM_WB, halted
+    global halted
     if MEM_WB.get('opcode') == ISA['HALT'] or MEM_WB.get('halt'):
         halted = True
         print("[WB] HALT encountered. Stopping execution.")
@@ -148,15 +222,15 @@ def write_back():
 
     dest = MEM_WB.get('dest')
     result = MEM_WB.get('result')
+
     if dest is not None:
-        if isinstance(dest, tuple):
-            registers[dest[0]] = result[0]
-            registers[dest[1]] = result[1]
-            print(f"[WB] Write to R{dest[0]} = {result[0]}, R{dest[1]} = {result[1]}")
+        if isinstance(dest, tuple) and isinstance(result, tuple):
+            for i, reg in enumerate(dest):
+                registers[reg] = result[i]
+                print(f"[WB] Write to R{reg} = {result[i]:08X}")
         else:
             registers[dest] = result
-            print(f"[WB] Write to R{dest} = {result}")
-
+            print(f"[WB] Write to R{dest} = {result:08X}")
 
 def step():
     global cycle_count
@@ -167,8 +241,8 @@ def step():
     decode()
     fetch()
     print_cpu_state()
+    print_pipeline_registers()
     cycle_count += 1
-
 
 def run():
     global halted

@@ -15,5 +15,6 @@ ISA = {
     "JMP":   0x0E,  # Salto incondicional
     "BEQ":   0x0F,  # Salto si iguales
     "BNE":   0x10,  # Salto si diferentes
+    "NOP":   0x11,
     "HALT":  0xFF
 }
