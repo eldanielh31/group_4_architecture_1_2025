@@ -27,6 +27,14 @@ class Procesador:
         self.total_cycles = 0
         self.instructions_completed = 0
         self.halted = False
+        self.regCrypt = {
+            "key": None,
+            "v0": 0,
+            "v1": 0,
+            "sum": 0,
+            "rounds": 0
+        }
+        self.vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 
     def cargarInstrucciones(self, program):
         self.IM.instrucciones = program
@@ -114,6 +122,7 @@ class Procesador:
                 ipc = self.instructions_completed / max(1, self.total_cycles)
                 clock_rate = self.total_cycles / (elapsed_time * 1e9)  # Clock rate en GHz
                 print("Cycles: ", self.total_cycles)
+                print(self.vault)
             else:
                 cpi = ipc = clock_rate = 0
 

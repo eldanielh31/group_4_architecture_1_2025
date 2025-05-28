@@ -1,6 +1,5 @@
 from instrucciones.isa import ISA
 
-
 def assemble(lines, procesador):
     program = []
     for lineno, line in enumerate(lines, 1):
@@ -13,12 +12,17 @@ def assemble(lines, procesador):
             if instr not in ISA:
                 raise ValueError(f"Unknown instruction '{instr}'")
 
-            if instr == "LOADK":
+            elif instr in ["LOADK"]:
+                print(f"Instr: {instr}") 
                 if len(parts) != 6:
                     raise ValueError("LOADK expects 5 arguments")
-                instance = ISA[instr](int(parts[1][1]),
-                                int(parts[2], 16), int(parts[3], 16),
-                                int(parts[4], 16), int(parts[5], 16), procesador)
+                kid = int(parts[1])
+                print(f"Parts: {parts[1]}") 
+                #print(f"XD: {kid}") 
+                print(f"ISA[{instr}]: {ISA[instr]}") 
+                key_parts = [int(parts[2], 16), int(parts[3], 16), int(parts[4], 16), int(parts[5], 16)]
+                instance = ISA[instr](kid,key_parts, procesador)
+                print(f"Instance: {instance}")
                 program.append(instance)
 
             elif instr in ["MOVB", "ENC32", "DEC32", "STB"]:
@@ -31,7 +35,10 @@ def assemble(lines, procesador):
             elif instr in ["ADD", "SUB", "XOR", "AND", "OR"]:
                 if len(parts) != 4:
                     raise ValueError(f"{instr} expects 3 arguments")
+                print("Intruccion:"+instr)
+                print(ISA[instr])
                 instance = ISA[instr](int(parts[1][1:]), int(parts[2][1:]), int(parts[3][1:]), procesador)
+                print(f"Instance: {instance}")
                 program.append(instance)
 
             elif instr in ["SHL", "SHR"]:
