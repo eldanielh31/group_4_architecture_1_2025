@@ -1,115 +1,252 @@
-from isa import ISA  # Importa el set de instrucciones definido externamente
+from isa import ISA
 
-# ------------------------------------------
-# Estado del procesador (simulado)
-# ------------------------------------------
-
-registers = [0] * 16  # Registros generales R0-R15 (solo se usan R1–R4 aquí)
-data_memory = [0] * 1024  # Memoria de datos (espacio de lectura/escritura)
-instr_memory = []  # Memoria de instrucciones cargadas (programa ensamblado)
-
-# "Vault" o bóveda: almacena claves de 128 bits (4 palabras de 32 bits) para cifrado/descifrado
-vault = {
-    0: [0]*4,
-    1: [0]*4,
-    2: [0]*4,
-    3: [0]*4
+# Estado del procesador
+registers = [0] * 16
+instr_memory = []
+data_memory = [0] * 1024
+vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
+halted = False
+# Registros dedicados para cifrado
+crypto_registers = {
+    "V0": 0,  # Entrada 1
+    "V1": 0,  # Entrada 2
+    "C0": 0,  # Salida 1
+    "C1": 0   # Salida 2
 }
 
-pc = 0         # Program Counter: índice de la instrucción actual
-halted = False # Señal de detención del procesador (estado HALT)
+# Registros inter-etapas del pipeline
+IF_ID = {}
+ID_EX = {}
+EX_MEM = {}
+MEM_WB = {}
 
-# ------------------------------------------
-# Carga el programa ensamblado en la memoria de instrucciones
-# ------------------------------------------
+pc = 0
+cycle_count = 0
+
 def load_program(program):
     global instr_memory
     instr_memory = program
 
-# ------------------------------------------
-# Ejecuta una instrucción según el valor de pc
-# ------------------------------------------
-def execute_instruction():
-    global pc, halted
-    instr = instr_memory[pc]
-    opcode = instr[0]  # Primer elemento es el código de operación (opcode)
+def print_cpu_state():
+    print("\n--- CPU STATE ---")
+    print(f"PC: {pc}")
+    print(f"Registers: {[f'R{i}={r:08X}' for i, r in enumerate(registers)]}")
+    print(f"Vault: {vault}")
+    print("---------------\n")
 
-    print(f"[PC={pc}] Executing: {instr}")  # Debug: mostrar instrucción actual
+def print_pipeline_registers():
+    print("--- Pipeline Registers ---")
+    print(f"IF/ID:  {IF_ID}")
+    print(f"ID/EX:  {ID_EX}")
+    print(f"EX/MEM:{EX_MEM}")
+    print(f"MEM/WB:{MEM_WB}")
+    print("--------------------------\n")
 
-    # Instrucción: LOADK <key_id>, k0, k1, k2, k3
-    # Carga una clave en la "vault" (bóveda) de claves
-    if opcode == ISA["LOADK"]:
-        kid = instr[1]  # ID de la clave (0–3)
-        vault[kid] = [instr[2], instr[3], instr[4], instr[5]]
+def fetch():
+    global pc, IF_ID
+    if 'jumped' in EX_MEM:
+        print(f"[IF] Skipped fetch due to jump")
+        return
+    if pc < len(instr_memory):
+        IF_ID = {'instr': instr_memory[pc], 'pc': pc}
+        print(f"[IF] Fetched instruction at PC={pc}: {instr_memory[pc]}")
         pc += 1
-
-    # Instrucción: MOVB <direccion>
-    # Carga dos palabras (v0, v1) desde memoria en R1 y R2
-    elif opcode == ISA["MOVB"]:
-        base_addr = instr[1]
-        registers[1] = int(data_memory[base_addr])
-        registers[2] = int(data_memory[base_addr + 1])
-        print(f" -> MOVB loaded R1={hex(registers[1])}, R2={hex(registers[2])}")
-        pc += 1
-
-    # Instrucción: STB <direccion>
-    # Guarda R3 y R4 en memoria (salida de cifrado/descifrado)
-    elif opcode == ISA["STB"]:
-        base_addr = instr[1]
-        data_memory[base_addr] = registers[3]
-        data_memory[base_addr + 1] = registers[4]
-        print(f" -> STB saved R3={hex(registers[3])}, R4={hex(registers[4])}")
-        pc += 1
-
-    # Instrucción: ENC32 <key_id>
-    # Cifra 64 bits (R1 y R2) con la clave vault[key_id], resultado en R3 y R4
-    elif opcode == ISA["ENC32"]:
-        kid = instr[1]
-        delta = 0x9e3779b9  # Constante mágica del algoritmo TEA
-        sum_ = 0
-        v0 = int(registers[1])
-        v1 = int(registers[2])
-        key = vault[kid]
-        print(f" -> ENC32 START: v0={hex(v0)}, v1={hex(v1)}")
-        for _ in range(32):  # 32 rondas del algoritmo TEA
-            sum_ = (sum_ + delta) & 0xFFFFFFFF
-            v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-        registers[3], registers[4] = v0, v1
-        print(f" -> ENC32 END: R3={hex(v0)}, R4={hex(v1)}")
-        pc += 1
-
-    # Instrucción: DEC32 <key_id>
-    # Descifra 64 bits (R1 y R2) con la clave vault[key_id], resultado en R3 y R4
-    elif opcode == ISA["DEC32"]:
-        kid = instr[1]
-        delta = 0x9e3779b9
-        sum_ = (delta * 32) & 0xFFFFFFFF
-        v0 = int(registers[1])
-        v1 = int(registers[2])
-        key = vault[kid]
-        print(f" -> DEC32 START: v0={hex(v0)}, v1={hex(v1)}")
-        for _ in range(32):  # 32 rondas inversas de TEA
-            v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
-            v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
-            sum_ = (sum_ - delta) & 0xFFFFFFFF
-        registers[3], registers[4] = v0, v1
-        print(f" -> DEC32 END: R3={hex(v0)}, R4={hex(v1)}")
-        pc += 1
-
-    # Instrucción: HALT
-    # Detiene la ejecución
-    elif opcode == ISA["HALT"]:
-        print(" -> HALT encountered")
-        halted = True
-
-    # Instrucción no reconocida
     else:
-        raise Exception(f"Unknown opcode: {opcode}")
+        IF_ID = {'instr': None}
 
-# ------------------------------------------
-# Bucle de ejecución del procesador
-# ------------------------------------------
+def decode():
+    global IF_ID, ID_EX, EX_MEM, MEM_WB
+    instr = IF_ID.get('instr')
+    if instr:
+        opcode = instr[0]
+        args = instr[1:]
+
+        val_args = []
+        for i, arg in enumerate(args):
+            if isinstance(arg, tuple) and arg[0] == '#':
+                val_args.append(arg[1])
+            elif isinstance(arg, int) and 0 <= arg < len(registers):
+                dest = EX_MEM.get('dest')
+                if isinstance(dest, tuple) and arg in dest:
+                    idx = dest.index(arg)
+                    val_args.append(EX_MEM.get('result')[idx])
+                    print(f"[FWD] Forwarded from EX_MEM to argument {i}")
+                elif dest == arg:
+                    val_args.append(EX_MEM.get('result'))
+                    print(f"[FWD] Forwarded from EX_MEM to argument {i}")
+                else:
+                    dest = MEM_WB.get('dest')
+                    if isinstance(dest, tuple) and arg in dest:
+                        idx = dest.index(arg)
+                        val_args.append(MEM_WB.get('result')[idx])
+                        print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+                    elif dest == arg:
+                        val_args.append(MEM_WB.get('result'))
+                        print(f"[FWD] Forwarded from MEM_WB to argument {i}")
+                    else:
+                        val_args.append(registers[arg])
+            else:
+                val_args.append(arg)
+
+        ID_EX = {'opcode': opcode, 'args': args, 'val_args': val_args}
+        print(f"[ID] Decoded instruction: opcode={opcode}, args={args}, val_args={val_args}")
+    else:
+        ID_EX = {'opcode': None}
+
+def execute():
+    global ID_EX, EX_MEM, pc
+    opcode = ID_EX.get('opcode')
+    args = ID_EX.get('args')
+    val_args = ID_EX.get('val_args')
+
+    EX_MEM.clear()
+    EX_MEM.update({'opcode': opcode, 'args': args, 'result': None})
+
+    print(f"[EX] Executing opcode={opcode}, args={args}, val_args={val_args}")
+    if opcode is None:
+        return
+
+    elif opcode == ISA['MOV']:
+        EX_MEM['result'] = val_args[1]
+        EX_MEM['dest'] = args[0]
+        print(f"[EX] MOV R{args[0]} = {val_args[1]}")
+
+    elif opcode == ISA['ADD']:
+        EX_MEM['result'] = val_args[0] + val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] ADD R{args[2]} = {val_args[0]} + {val_args[1]}")
+
+    elif opcode == ISA['SUB']:
+        EX_MEM['result'] = val_args[0] - val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] SUB R{args[2]} = {val_args[0]} - {val_args[1]}")
+
+    elif opcode == ISA['SHR']:
+        EX_MEM['result'] = val_args[0] >> val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] SHR R{args[2]} = {val_args[0]} >> {val_args[1]}")
+
+    elif opcode == ISA['SHL']:
+        EX_MEM['result'] = val_args[0] << val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] SHL R{args[2]} = {val_args[0]} << {val_args[1]}")
+
+    elif opcode == ISA['XOR']:
+        EX_MEM['result'] = val_args[0] ^ val_args[1]
+        EX_MEM['dest'] = args[2]
+        print(f"[EX] XOR R{args[2]} = {val_args[0]} ^ {val_args[1]}")
+
+    elif opcode == ISA['ST']:
+        addr = val_args[1] if isinstance(args[1], tuple) else args[1]
+        data_memory[addr] = registers[args[0]]
+        print(f"[EX] ST Mem[{addr}] = R{args[0]} = {registers[args[0]]}")
+
+    elif opcode == ISA['LD']:
+        addr = val_args[1] if isinstance(args[1], tuple) else args[1]
+        EX_MEM['result'] = data_memory[addr]
+        EX_MEM['dest'] = args[0]
+        print(f"[EX] LD R{args[0]} = Mem[{addr}] = {data_memory[addr]}")
+
+    elif opcode == ISA['MOVB']:
+        addr = val_args[0] if isinstance(val_args[0], int) else 0
+        if addr < 0 or addr + 1 >= len(data_memory):
+            print(f"[EX] MOVB error: invalid memory address {addr}")
+            EX_MEM['halt'] = True
+            return
+        registers[1] = data_memory[addr]
+        registers[2] = data_memory[addr + 1]
+        print(f"[EX] MOVB loaded R1 = {registers[1]:08X}, R2 = {registers[2]:08X} from Mem[{addr}] and Mem[{addr + 1}]")
+
+    elif opcode == ISA['STB']:
+        addr = val_args[0]
+        data_memory[addr] = registers[3]
+        data_memory[addr + 1] = registers[4]
+        print(f"[EX] STB -> Mem[{addr}] = {registers[3]:08X}, Mem[{addr+1}] = {registers[4]:08X}")
+
+    elif opcode == ISA['LOADK']:
+        kid = args[0]
+        if 0 <= kid <= 3:
+            vault[kid] = args[1:5]
+            print(f"[EX] LOADK -> Vault[{kid}] = {[f'{v:08X}' for v in vault[kid]]}")
+        else:
+            print(f"[EX] LOADK failed: invalid vault id {kid}")
+
+    elif opcode == ISA['JMP']:
+        pc = args[0]
+        IF_ID.clear()
+        ID_EX.clear()
+        EX_MEM.clear()
+        EX_MEM['jumped'] = True
+        print(f"[EX] JMP to PC = {pc}")
+
+    elif opcode == ISA['BEQ']:
+        val1 = val_args[0]
+        val2 = val_args[1]
+        if val1 == val2:
+            pc = args[2]
+            IF_ID.clear()
+            ID_EX.clear()
+            EX_MEM.clear()
+            EX_MEM['jumped'] = True
+            print(f"[EX] BEQ taken: R{args[0]} == R{args[1]} -> PC = {pc}")
+        else:
+            print(f"[EX] BEQ not taken: R{args[0]} = {val1}, R{args[1]} = {val2}")
+
+    elif opcode == ISA['BNE']:
+        if registers[args[0]] != registers[args[1]]:
+            pc = args[2]
+            IF_ID.clear()
+            ID_EX.clear()
+            EX_MEM.clear()
+            EX_MEM['jumped'] = True
+            print(f"[EX] BNE taken to PC = {pc}")
+        else:
+            print(f"[EX] BNE not taken: R{args[0]} == R{args[1]}")
+
+    elif opcode == ISA['HALT']:
+        EX_MEM['halt'] = True
+        print("[EX] HALT encountered")
+
+    elif opcode == ISA['NOP']:
+        print("[EX] NOP (no operation)")
+
+def memory_access():
+    global MEM_WB
+    MEM_WB.clear()
+    MEM_WB.update(EX_MEM)
+
+def write_back():
+    global halted
+    if MEM_WB.get('opcode') == ISA['HALT'] or MEM_WB.get('halt'):
+        halted = True
+        print("[WB] HALT encountered. Stopping execution.")
+        return
+
+    dest = MEM_WB.get('dest')
+    result = MEM_WB.get('result')
+
+    if dest is not None:
+        if isinstance(dest, tuple) and isinstance(result, tuple):
+            for i, reg in enumerate(dest):
+                registers[reg] = result[i]
+                print(f"[WB] Write to R{reg} = {result[i]:08X}")
+        else:
+            registers[dest] = result
+            print(f"[WB] Write to R{dest} = {result:08X}")
+
+def step():
+    global cycle_count
+    print(f"\n========== Cycle {cycle_count} ==========")
+    write_back()
+    memory_access()
+    execute()
+    decode()
+    fetch()
+    print_cpu_state()
+    print_pipeline_registers()
+    cycle_count += 1
+
 def run():
+    global halted
     while not halted:
-        execute_instruction()
+        step()

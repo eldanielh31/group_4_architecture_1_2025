@@ -1,23 +1,37 @@
-; Cargar clave en la bóveda K0
+; Cargar clave K0 en la bóveda
 LOADK K0, 0xA1B2C3D4, 0x11223344, 0x55667788, 0x99AABBCC
 
-; Cargar bloque (v0, v1) desde memoria[0] y memoria[1] a registros R1 y R2
+; Cargar bloque desde memoria[0] y memoria[1] en R1 y R2
 MOVB 0
 
-; Cifrar R1 y R2 usando la clave K0 → resultado en R3 y R4
-ENC32 0
+; Cifrar R1 y R2 con clave K0, resultado en R3 y R4
+ENC32 K0
 
-; Guardar resultado cifrado (R3, R4) en memoria[10] y memoria[11]
-STB 10
+STB R10
 
-; Cargar el bloque cifrado (memoria[10..11]) en R1 y R2 para descifrarlo
-MOVB 10
+MOVB R10
 
-; Descifrar el bloque con la misma clave K0 → resultado en R3 y R4
-DEC32 0
+; Descifrar bloque con K0, resultado en R3 y R4
+DEC32 K0
 
 ; Guardar resultado descifrado en memoria[20] y memoria[21]
 STB 20
 
-; Finalizar ejecución
+; Segundo bloque: cifrar y descifrar "do"
+MOVB 2
+ENC32 K0
+
+; Guardar cifrado del segundo bloque en memoria[12] y [13]
+STB 12
+
+; Cargar cifrado del segundo bloque
+MOVB 12
+
+; Descifrar segundo bloque
+DEC32 K0
+
+; Guardar descifrado final en memoria[22] y [23]
+STB 22
+
+; Fin
 HALT
