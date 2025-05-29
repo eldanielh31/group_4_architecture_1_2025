@@ -1,5 +1,5 @@
 MOV R1, #5
-ADD #2, R1, R1
+ADD #2, R1, R4
 MOV R2, #5
 BEQ R1, R2, igual
 MOV R3, #99
