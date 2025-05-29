@@ -32,6 +32,12 @@ def print_cpu_state():
     print(f"PC: {pc}")
     print(f"Registers: {[f'R{i}={r:08X}' for i, r in enumerate(registers)]}")
     print(f"Vault: {vault}")
+    print(
+    f'crypto_registers: V0=0x{crypto_registers["V0"]:08X}, '
+    f'V1=0x{crypto_registers["V1"]:08X}, '
+    f'C0=0x{crypto_registers["C0"]:08X}, '
+    f'C1=0x{crypto_registers["C1"]:08X}'
+    )
     print("---------------\n")
 
 def print_pipeline_registers():
@@ -153,15 +159,23 @@ def execute():
             print(f"[EX] MOVB error: invalid memory address {addr}")
             EX_MEM['halt'] = True
             return
-        registers[1] = data_memory[addr]
-        registers[2] = data_memory[addr + 1]
-        print(f"[EX] MOVB loaded R1 = {registers[1]:08X}, R2 = {registers[2]:08X} from Mem[{addr}] and Mem[{addr + 1}]")
+        crypto_registers["V0"] = data_memory[addr]
+        crypto_registers["V1"] = data_memory[addr + 1]
+        print(f" -> MOVB loaded V0={hex(crypto_registers['V0'])}, V1={hex(crypto_registers['V1'])}")
 
     elif opcode == ISA['STB']:
         addr = val_args[0]
-        data_memory[addr] = registers[3]
-        data_memory[addr + 1] = registers[4]
-        print(f"[EX] STB -> Mem[{addr}] = {registers[3]:08X}, Mem[{addr+1}] = {registers[4]:08X}")
+        print (len(data_memory))
+        if addr < 0 or addr + 1 >= len(data_memory):
+            print(f"[EX] STR error: invalid memory address {addr}")
+            EX_MEM['halt'] = True
+            return
+        data_memory[addr] = crypto_registers["C0"]
+        data_memory[addr + 1] = crypto_registers["C1"]
+        print(f" -> STB saved C0={hex(crypto_registers['C0'])}, C1={hex(crypto_registers['C1'])}")
+        for k in crypto_registers:
+            crypto_registers[k] = 0
+        print(" -> Crypto registers securely cleared")
 
     elif opcode == ISA['LOADK']:
         kid = args[0]
