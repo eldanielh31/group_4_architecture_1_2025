@@ -6,7 +6,13 @@ instr_memory = []
 data_memory = [0] * 1024
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 halted = False
-#TODO: Agregar registros temporales privados para manejar las encriptaciones dentro de las instrucciones
+# Registros dedicados para cifrado
+crypto_registers = {
+    "V0": 0,  # Entrada 1
+    "V1": 0,  # Entrada 2
+    "C0": 0,  # Salida 1
+    "C1": 0   # Salida 2
+}
 
 # Registros inter-etapas del pipeline
 IF_ID = {}
