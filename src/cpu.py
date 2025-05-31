@@ -165,14 +165,28 @@ def execute():
 
     elif opcode == ISA['STB']:
         addr = val_args[0]
-        print (len(data_memory))
+
+        # Forwarding para C0 y C1 desde EX_MEM o MEM_WB si están disponibles
+        c0 = crypto_registers["C0"]
+        c1 = crypto_registers["C1"]
+
+        if EX_MEM.get('dest') == ('C0', 'C1') and isinstance(EX_MEM.get('result'), tuple):
+            c0, c1 = EX_MEM['result']
+            print("[FWD] Forwarded from EX_MEM to STB")
+        elif MEM_WB.get('dest') == ('C0', 'C1') and isinstance(MEM_WB.get('result'), tuple):
+            c0, c1 = MEM_WB['result']
+            print("[FWD] Forwarded from MEM_WB to STB")
+
         if addr < 0 or addr + 1 >= len(data_memory):
-            print(f"[EX] STR error: invalid memory address {addr}")
+            print(f"[EX] STB error: invalid memory address {addr}")
             EX_MEM['halt'] = True
             return
-        data_memory[addr] = crypto_registers["C0"]
-        data_memory[addr + 1] = crypto_registers["C1"]
-        print(f" -> STB saved C0={hex(crypto_registers['C0'])}, C1={hex(crypto_registers['C1'])}")
+
+        data_memory[addr] = c0
+        data_memory[addr + 1] = c1
+        print(f" -> STB saved C0={hex(c0)}, C1={hex(c1)}")
+
+        # Limpieza segura de los registros
         for k in crypto_registers:
             crypto_registers[k] = 0
         print(" -> Crypto registers securely cleared")
@@ -224,6 +238,43 @@ def execute():
     elif opcode == ISA['NOP']:
         print("[EX] NOP (no operation)")
 
+    elif opcode == ISA['ENC32']:
+        kid = args[0]
+        delta = 0x9e3779b9
+        sum_ = 0
+        v0 = crypto_registers["V0"]
+        v1 = crypto_registers["V1"]
+        key = vault[kid]
+        print(f"[EX] ENC32 START: V0={hex(v0)}, V1={hex(v1)}")
+
+        for _ in range(32):
+            sum_ = (sum_ + delta) & 0xFFFFFFFF
+            v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
+            v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
+
+        EX_MEM['result'] = (v0, v1)
+        EX_MEM['dest'] = ('C0', 'C1')  # Especificamos que van al crypto_registers
+        print(f"[EX] ENC32 END: C0={hex(v0)}, C1={hex(v1)}")
+
+    elif opcode == ISA['DEC32']:
+        kid = args[0]
+        delta = 0x9e3779b9
+        sum_ = (delta * 32) & 0xFFFFFFFF
+        v0 = crypto_registers["V0"]
+        v1 = crypto_registers["V1"]
+        key = vault[kid]
+        print(f"[EX] DEC32 START: V0={hex(v0)}, V1={hex(v1)}")
+
+        for _ in range(32):
+            v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
+            v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
+            sum_ = (sum_ - delta) & 0xFFFFFFFF
+
+        EX_MEM['result'] = (v0, v1)
+        EX_MEM['dest'] = ('C0', 'C1')
+        print(f"[EX] DEC32 END: C0={hex(v0)}, C1={hex(v1)}")
+
+
 def memory_access():
     global MEM_WB
     MEM_WB.clear()
@@ -242,11 +293,20 @@ def write_back():
     if dest is not None:
         if isinstance(dest, tuple) and isinstance(result, tuple):
             for i, reg in enumerate(dest):
-                registers[reg] = result[i]
-                print(f"[WB] Write to R{reg} = {result[i]:08X}")
+                if isinstance(reg, str) and reg in crypto_registers:
+                    crypto_registers[reg] = result[i]
+                    print(f"[WB] Write to {reg} = {result[i]:08X}")
+                else:
+                    registers[reg] = result[i]
+                    print(f"[WB] Write to R{reg} = {result[i]:08X}")
         else:
-            registers[dest] = result
-            print(f"[WB] Write to R{dest} = {result:08X}")
+            if isinstance(dest, str) and dest in crypto_registers:
+                crypto_registers[dest] = result
+                print(f"[WB] Write to {dest} = {result:08X}")
+            else:
+                registers[dest] = result
+                print(f"[WB] Write to R{dest} = {result:08X}")
+
 
 def step():
     global cycle_count
