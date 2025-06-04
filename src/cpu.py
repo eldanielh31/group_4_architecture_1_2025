@@ -4,7 +4,7 @@ from isa import ISA
 registers = [0] * 16
 instr_memory = []
 # data_memory = [0] * 1024
-data_memory = [0] * 5120
+data_memory = [0] * 3072
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 halted = False
 # Registros dedicados para cifrado
