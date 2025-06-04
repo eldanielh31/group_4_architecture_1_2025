@@ -1,3 +1,4 @@
 /__pycache__
-salida_descifrada.txt
+*.txt.enc
 *.enc
+*decrypted.txt
