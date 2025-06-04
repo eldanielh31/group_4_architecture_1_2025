@@ -3,7 +3,8 @@ from isa import ISA
 # Estado del procesador
 registers = [0] * 16
 instr_memory = []
-data_memory = [0] * 1024
+# data_memory = [0] * 1024
+data_memory = [0] * 5120
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 halted = False
 # Registros dedicados para cifrado

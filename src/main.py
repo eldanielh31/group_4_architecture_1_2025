@@ -2,59 +2,64 @@ from assembler import assemble
 import cpu
 
 # ------------------------------------------
-# Función para dividir texto plano en bloques de 64 bits (8 bytes)
-# Devuelve una lista de tuplas (v0, v1) donde cada valor es de 32 bits
+# Función para dividir texto en bloques de 64 bits (8 bytes)
 # ------------------------------------------
 def str_to_blocks(text):
-    data = text.encode("utf-8")  # Convierte el texto a bytes
+    data = text.encode("utf-8")
     blocks = []
     for i in range(0, len(data), 8):
-        chunk = data[i:i+8].ljust(8, b"\x00")  # Asegura que cada bloque tenga 8 bytes
-        v0 = int.from_bytes(chunk[:4], "big")  # Primeras 4 bytes como entero (v0)
-        v1 = int.from_bytes(chunk[4:], "big")  # Siguientes 4 bytes como entero (v1)
+        chunk = data[i:i+8].ljust(8, b"\x00")
+        v0 = int.from_bytes(chunk[:4], "big")
+        v1 = int.from_bytes(chunk[4:], "big")
         blocks.append((v0, v1))
     return blocks
 
+# ------------------------------------------
+# Función para convertir bloques de enteros a texto
+# ------------------------------------------
+def blocks_to_str(blocks):
+    result_bytes = b''
+    for v0, v1 in blocks:
+        result_bytes += v0.to_bytes(4, 'big') + v1.to_bytes(4, 'big')
+    return result_bytes.rstrip(b'\x00').decode('utf-8', errors='replace')
 
 # ------------------------------------------
-# Preparar memoria para cifrado de texto
+# Entrada de texto a cifrar
 # ------------------------------------------
-texto_original = "Hola mundo"
+texto_original = "Hola Daniel Brenes"
 bloques = str_to_blocks(texto_original)
 
-for i, (v0, v1) in enumerate(bloques):  
+# Guardamos los bloques en memoria (usamos desde la dirección 0)
+for i, (v0, v1) in enumerate(bloques):
     cpu.data_memory[i * 2] = v0
     cpu.data_memory[i * 2 + 1] = v1
 
 # ------------------------------------------
-# Cargar y ensamblar el programa
+# Ensamblar y cargar el programa
 # ------------------------------------------
 with open("test.asm") as f:
-# with open("program.asm") as f:
     source = f.readlines()
 program = assemble(source)
 cpu.load_program(program)
 
-# cpu.data_memory[0] = 0x486F6C61  # "Hola"
-# cpu.data_memory[1] = 0x206D756E  # " mun"
 # ------------------------------------------
-# Ejecutar el programa con CPU en pipeline
+# Ejecutar el programa
 # ------------------------------------------
 cpu.run()
 
 # ------------------------------------------
-# Mostrar resultados en consola
+# Leer bloques desencriptados desde Mem[20...]
 # ------------------------------------------
-print("\nMemoria final:")
-for i in range(0, 24, 2):
-    v0 = cpu.data_memory[i]
-    v1 = cpu.data_memory[i+1]
-    print(f"Mem[{i:02}] = {v0:08X}, Mem[{i+1:02}] = {v1:08X}")
-    
-# Mostrar texto completo descifrado desde Mem[20] hasta Mem[23]
-result_bytes = b''
-for i in range(20, 24):
-    result_bytes += cpu.data_memory[i].to_bytes(4, 'big')
+dec_blocks = []
+for i in range(len(bloques)):
+    v0 = cpu.data_memory[20 + i * 2]
+    v1 = cpu.data_memory[20 + i * 2 + 1]
+    dec_blocks.append((v0, v1))
 
-print("Texto desencriptado:", result_bytes.decode('utf-8', errors='replace'))
+texto_desencriptado = blocks_to_str(dec_blocks)
 
+# ------------------------------------------
+# Imprimir resultados
+# ------------------------------------------
+print("\nTexto original:", texto_original)
+print("Texto desencriptado:", texto_desencriptado)
