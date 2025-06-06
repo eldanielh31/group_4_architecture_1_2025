@@ -4,7 +4,7 @@ from isa import ISA
 registers = [0] * 16
 instr_memory = []
 # data_memory = [0] * 1024
-data_memory = [0] * 3072
+data_memory = [0] * 20000
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 halted = False
 # Registros dedicados para cifrado
@@ -325,3 +325,19 @@ def run():
     global halted
     while not halted:
         step()
+
+def reset():
+    global registers, data_memory, crypto_registers, vault, pc, cycle_count, halted, IF_ID, ID_EX, EX_MEM, MEM_WB
+    registers[:] = [0] * 16
+    data_memory[:] = [0] * len(data_memory)
+    for k in crypto_registers:
+        crypto_registers[k] = 0
+    for k in vault:
+        vault[k] = [0] * 4
+    pc = 0
+    cycle_count = 0
+    halted = False
+    IF_ID.clear()
+    ID_EX.clear()
+    EX_MEM.clear()
+    MEM_WB.clear()

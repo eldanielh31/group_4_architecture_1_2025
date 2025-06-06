@@ -35,10 +35,36 @@ for i, (v0, v1) in enumerate(bloques):
     cpu.data_memory[i * 2 + 1] = v1
 
 # ------------------------------------------
+# Programa ensamblador embebido
+# ------------------------------------------
+source = [
+    "LOADK K0, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF",
+    "MOV R3, #0",      # i = 0
+    "MOV R4, #6",      # número de palabras (3 bloques * 2)
+    "cifrar_loop:",
+    "MOV R1, R3",      # dirección de entrada
+    "MOVB R1",
+    "ENC32 K0",
+    "ADD #10, R3, R2", # dirección de salida cifrada
+    "STB R2",
+    "ADD R3, #2, R3",  # i += 2
+    "BNE R3, R4, cifrar_loop",
+    "MOV R3, #10",     # i = 10
+    "MOV R4, #16",     # fin = 10 + (3 bloques * 2)
+    "descifrar_loop:",
+    "MOV R1, R3",
+    "MOVB R1",
+    "DEC32 K0",
+    "ADD #10, R3, R2", # dirección de salida descifrada
+    "STB R2",
+    "ADD R3, #2, R3",
+    "BNE R3, R4, descifrar_loop",
+    "HALT"
+]
+
+# ------------------------------------------
 # Ensamblar y cargar el programa
 # ------------------------------------------
-with open("test.asm") as f:
-    source = f.readlines()
 program = assemble(source)
 cpu.load_program(program)
 
