@@ -46,13 +46,17 @@ def generate_crypto_program(start_addr, output_addr, n_blocks, mode):
         "HALT"
     ]
 
+def check_blocks(blocks):
+        if len(blocks) * 2 + 1000 >= len(cpu.data_memory):
+            raise MemoryError(f"El archivo es demasiado grande. data_memory insuficiente para {len(blocks)} bloques.")
+
+
 # ------------------------------------------
 # Encriptar archivo
 # ------------------------------------------
 def encrypt_file(input_filename, encrypted_filename):
     blocks = read_file_to_blocks(input_filename)
-    if len(blocks) * 2 + 1000 >= len(cpu.data_memory):
-        raise MemoryError(f"El archivo es demasiado grande. data_memory insuficiente para {len(blocks)} bloques.")
+    check_blocks(blocks)
     cpu.reset()
 
     # Guardar bloques en memoria
@@ -87,9 +91,7 @@ def encrypt_file(input_filename, encrypted_filename):
 # ------------------------------------------
 def decrypt_file(encrypted_filename, output_filename):
     blocks = read_file_to_blocks(encrypted_filename)
-    if len(blocks) * 2 + 1000 >= len(cpu.data_memory):
-        raise MemoryError(f"El archivo es demasiado grande. data_memory insuficiente para {len(blocks)} bloques.")
-
+    check_blocks(blocks)
     cpu.reset()
 
     # Guardar bloques en memoria
