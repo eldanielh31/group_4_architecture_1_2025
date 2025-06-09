@@ -4,7 +4,7 @@ from isa import ISA
 registers = [0] * 16
 instr_memory = []
 # data_memory = [0] * 1024
-data_memory = [0] * 50000
+data_memory = [0] * 20000
 vault = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
 halted = False
 # Registros dedicados para cifrado
@@ -24,6 +24,24 @@ MEM_WB = {}
 pc = 0
 cycle_count = 0
 
+
+def detect_hazard(ID_instr, EX_instr):
+    # Revisa si hay una dependencia entre la instrucción en ID y la de EX
+    if not ID_instr or not EX_instr:
+        return False
+
+    id_op = ID_instr.get('instr')
+    ex_dest = EX_instr.get('dest')
+
+    if id_op in ('ENC32', 'DEC32') and ex_dest == ('V0', 'V1'):
+        print("[STALL] ENC32/DEC32 esperando a MOVB (RAW hazard)")
+        return True
+
+    if id_op == 'STB' and ex_dest == ('C0', 'C1'):
+        print("[STALL] STB esperando a ENC32/DEC32 (RAW hazard)")
+        return True
+
+    return False
 def load_program(program):
     global instr_memory
     instr_memory = program
@@ -246,19 +264,7 @@ def execute():
         v0 = crypto_registers["V0"]
         v1 = crypto_registers["V1"]
         key = vault[kid]
-        #print(f"[EX] ENC32 START: V0={ascii(v0)}, V1={ascii(v1)}")
-        print(chr(v0 & 0x000000FF))
-        print(chr((v0 & 0x0000FF00)>>8))
-        print(chr((v0 & 0x00FF0000)>>16))
-        print(chr((v0 & 0xFF000000)>>24))
-        print("Xddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
-        print(chr(v1 & 0x000000FF))
-        print(chr((v1 & 0x0000FF00)>>8))
-        print(chr((v1 & 0x00FF0000)>>16))
-        print(chr((v1 & 0xFF000000)>>24))
-
-
-        
+        print(f"[EX] ENC32 START: V0={hex(v0)}, V1={hex(v1)}")
 
         for _ in range(32):
             sum_ = (sum_ + delta) & 0xFFFFFFFF
