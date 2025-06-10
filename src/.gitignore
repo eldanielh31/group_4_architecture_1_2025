@@ -2,3 +2,4 @@
 *.txt.enc
 *.enc
 *decrypted.txt
+*log.txt

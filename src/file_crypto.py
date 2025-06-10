@@ -154,4 +154,4 @@ if __name__ == "__main__":
 
     encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
     #time.sleep(3)
-    #decrypt_file("jorge_luis.txt.enc", "jorge.txt", "debug_log.txt")
+    decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
