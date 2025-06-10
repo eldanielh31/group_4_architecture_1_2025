@@ -148,10 +148,10 @@ def decrypt_file(encrypted_filename, output_filename, log_filename):
 # Main
 # ------------------------------------------
 if __name__ == "__main__":
-    #encrypt_file("imagen.png", "imagen.png.enc", "debug_log.txt")
-    #time.sleep(3)
-    #decrypt_file("encrypted_image.png", "imagen_restaurada.png", "debug_log.txt")
+    # encrypt_file("image.png", "image.png.enc", "debug_log.txt")
+    # time.sleep(3)
+    decrypt_file("image.png.enc", "imagen_decrypted.png", "debug_log.txt")
 
-    encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
+    # encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
     #time.sleep(3)
-    decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
+    # decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
