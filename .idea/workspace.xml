@@ -5,10 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4e97fe80-da8f-40f6-9f4c-51b58ddde5d2" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/dec.asm" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/maindec.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/prueba.asm" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/cpu.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/cpu.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/file_crypto.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/file_crypto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/jorge_luis.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/jorge_luis.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,25 +24,25 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 7
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
   <component name="ProjectId" id="2xqaqqPQWUFxySDAOyVF2G01Y0d" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.main.executor": "Run",
-    "Python.maindec.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "develop",
-    "last_opened_file_path": "/home/guz/ArquiProyecto/group_4_architecture_1_2025"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.maindec.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/guz/ArquiProyecto/group_4_architecture_1_2025&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

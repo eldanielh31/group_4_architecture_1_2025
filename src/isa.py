@@ -1,8 +1,6 @@
 ISA = {
     "LOADK": 0x01,  # Cargar clave en bóveda
-    #TODO: crear
     "ENC32": 0x02,  # Cifrado TEA
-    #TODO: crear
     "DEC32": 0x03,  # Descifrado TEA
     "MOVB":  0x04,  # Cargar bloque desde memoria a V0/V1 (Registros específicos)
     "STB":   0x05,  # Guardar resultado en memoria desde C0/C1 (Registros específicos)
