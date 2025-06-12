@@ -13,15 +13,15 @@ def read_file_to_blocks(filename):
     blocks = []
     for i in range(0, len(data), 8):
         chunk = data[i:i+8].ljust(8, b"\x00")
-        v0 = int.from_bytes(chunk[:4], "big")
-        v1 = int.from_bytes(chunk[4:], "big")
+        v0 = int.from_bytes(chunk[:4], "little")
+        v1 = int.from_bytes(chunk[4:], "little")
         blocks.append((v0, v1))
     return blocks
 
 def blocks_to_bytes(blocks):
     result = b''
     for v0, v1 in blocks:
-        result += v0.to_bytes(4, 'big') + v1.to_bytes(4, 'big')
+        result += v0.to_bytes(4, 'little') + v1.to_bytes(4, 'little')
     return result
 
 # ------------------------------------------
@@ -150,8 +150,8 @@ def decrypt_file(encrypted_filename, output_filename, log_filename):
 if __name__ == "__main__":
     # encrypt_file("image.png", "image.png.enc", "debug_log.txt")
     # time.sleep(3)
-    decrypt_file("image.png.enc", "imagen_decrypted.png", "debug_log.txt")
+    #decrypt_file("encrypted_image.png", "imagen_decrypted.png", "debug_log.txt")
 
-    # encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
-    #time.sleep(3)
-    # decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
+    encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
+    time.sleep(10)
+    decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
