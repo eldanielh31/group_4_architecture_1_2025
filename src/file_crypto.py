@@ -4,6 +4,8 @@ from assembler import assemble
 from hashlib import md5
 import os
 
+BLOCK_BATCH = 400
+
 # ------------------------------------------
 # Utilidades para conversión
 # ------------------------------------------
@@ -25,51 +27,20 @@ def blocks_to_bytes(blocks):
     return result
 
 # ------------------------------------------
-# Programa ensamblador
+# Utilidad para cargar y preparar programa ASM
 # ------------------------------------------
-def generate_crypto_program(start_addr, output_addr, n_blocks, mode):
-    op = "ENC32" if mode == "encrypt" else "DEC32"
-    program = ["LOADK K0, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF"]
-
-    for i in range(n_blocks):
-        input_addr = start_addr + i * 2
-        output_addr_i = output_addr + i * 2
-        program.extend([
-            f"MOV R3, #{input_addr}",
-            "MOV R1, R3",
-            "MOVB R1",
-            "NOP",
-            f"{op} K0",
-            "NOP",
-            f"MOV R2, #{output_addr_i}",
-            "NOP",
-            "STB R2",
-            "NOP",
-        ])
-    program.append("HALT")
-    return program
-
-# ------------------------------------------
-# Control de tamaño de memoria
-# ------------------------------------------
-def check_blocks(blocks):
-    if len(blocks) * 2 + 1000 >= len(cpu.data_memory):
-        raise MemoryError("Archivo muy grande. Memoria insuficiente.")
+def load_asm_with_blocks(template_path, n_blocks):
+    with open(template_path, "r") as f:
+        lines = f.read()
+    program_text = lines.replace("{{N_BLOCKS}}", str(n_blocks))
+    return [line.strip() for line in program_text.splitlines() if line.strip()]
 
 # ------------------------------------------
 # Encriptar archivo
 # ------------------------------------------
-BLOCK_BATCH = 400
-
 def encrypt_file(input_filename, encrypted_filename, log_filename):
     blocks = read_file_to_blocks(input_filename)
     original_file_size = os.path.getsize(input_filename)
-
-    # Guardar copia original y tamaño
-    with open("original_blocks.bin", "wb") as f:
-        f.write(blocks_to_bytes(blocks))
-    with open("original_size.txt", "w") as f:
-        f.write(str(original_file_size))
 
     encrypted_blocks = []
     with open(log_filename, "w") as log:
@@ -82,7 +53,7 @@ def encrypt_file(input_filename, encrypted_filename, log_filename):
             cpu.data_memory[i * 2] = v0
             cpu.data_memory[i * 2 + 1] = v1
 
-        program = generate_crypto_program(start_addr=0, output_addr=1000, n_blocks=len(batch), mode="encrypt")
+        program = load_asm_with_blocks("encrypt_loop.asm", len(batch))
         assembled = assemble(program)
         cpu.load_program(assembled)
         cpu.run()
@@ -122,7 +93,7 @@ def decrypt_file(encrypted_filename, output_filename, log_filename):
             cpu.data_memory[i * 2] = v0
             cpu.data_memory[i * 2 + 1] = v1
 
-        program = generate_crypto_program(start_addr=0, output_addr=1000, n_blocks=len(batch), mode="decrypt")
+        program = load_asm_with_blocks("decrypt_loop.asm", len(batch))
         assembled = assemble(program)
         cpu.load_program(assembled)
         cpu.run()
@@ -135,7 +106,6 @@ def decrypt_file(encrypted_filename, output_filename, log_filename):
                 log.write(f"[Block {index}] OUT: V0=0x{d0:08X}, V1=0x{d1:08X}\n")
                 decrypted_blocks.append((d0, d1))
 
-    # Convertir a bytes y quitar padding final
     raw_bytes = blocks_to_bytes(decrypted_blocks).rstrip(b"\x00")
 
     with open(output_filename, "wb") as f:
@@ -143,15 +113,18 @@ def decrypt_file(encrypted_filename, output_filename, log_filename):
 
     print(f"[✓] Archivo desencriptado: {output_filename}")
 
+def count_blocks(filename):
+    """
+    Retorna la cantidad de bloques de 8 bytes en el archivo dado.
+    """
+    file_size = os.path.getsize(filename)
+    return (file_size + 7) // 8  # Redondea hacia arriba si hay padding
+
 
 # ------------------------------------------
 # Main
 # ------------------------------------------
 if __name__ == "__main__":
-    # encrypt_file("image.png", "image.png.enc", "debug_log.txt")
-    # time.sleep(3)
-    #decrypt_file("encrypted_image.png", "imagen_decrypted.png", "debug_log.txt")
-
     encrypt_file("jorge_luis.txt", "jorge_luis.txt.enc", "debug_log.txt")
-    time.sleep(10)
+    time.sleep(5)
     decrypt_file("jorge_luis.txt.enc", "jorge_decrypted.txt", "debug_log.txt")
