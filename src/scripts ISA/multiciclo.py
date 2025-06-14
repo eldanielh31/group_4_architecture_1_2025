@@ -32,6 +32,10 @@ pc = default_pc
 ir = default_ir
 state = default_state
 halted = default_halted
+dest = 0
+result = 0
+op1 = 0
+op2 = 0
 
 # Variables temporales para instrucciones complejas
 default_tmp = {
@@ -51,7 +55,7 @@ def load_program(program):
     instr_memory = program.copy()
 
 def step():
-    global pc, halted, state, ir, tmp, cycles, instructions
+    global pc, halted, state, ir, tmp, cycles, instructions, dest, result, op1, op2
     cycles += 1
 
     if state == "FETCH":
@@ -69,6 +73,73 @@ def step():
         if opcode == ISA["LOADK"]:
             kid, *parts = tmp["args"]
             vault[kid] = parts.copy()
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['MOV']:
+            dest = tmp["args"][0]
+            result = tmp["args"][1]
+            registers[dest] = registers[result]
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['ADD']:
+            dest = tmp["args"][0]
+            op1 = tmp["args"][1]
+            op2 = tmp["args"][2]
+            result = registers[op1] + registers[op2]
+            registers[dest] = result
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['SUB']:
+            dest = tmp["args"][0]
+            op1 = tmp["args"][1]
+            op2 = tmp["args"][2]
+            result = registers[op1] - registers[op2]
+            registers[dest] = result
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['SHR']:
+            dest = tmp["args"][0]
+            op1 = tmp["args"][1]
+            op2 = tmp["args"][2]
+            result = registers[op1] >> registers[op2]
+            registers[dest] = result
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+
+        elif opcode == ISA['SHL']:
+            dest = tmp["args"][0]
+            op1 = tmp["args"][1]
+            op2 = tmp["args"][2]
+            result = registers[op1] << registers[op2]
+            registers[dest] = result
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['XOR']:
+            dest = tmp["args"][0]
+            op1 = tmp["args"][1]
+            op2 = tmp["args"][2]
+            result = registers[op1] ^ registers[op2]
+            registers[dest] = result
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['ST']:
+            dest = tmp["args"][1]
+            result = tmp["args"][0]
+            data_memory[dest] = registers[result]
+            pc += 1
+            instructions += 1
+            state = "FETCH"
+        elif opcode == ISA['LD']:
+            dest = tmp["args"][0]
+            result = tmp["args"][1]
+            registers[dest] = data_memory[result]
             pc += 1
             instructions += 1
             state = "FETCH"

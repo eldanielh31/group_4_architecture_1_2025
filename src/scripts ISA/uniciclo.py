@@ -29,6 +29,10 @@ default_end_time   = 0
 start_time = default_start_time
 end_time   = default_end_time
 elapsed_time = 0
+result = 0
+dest = 0
+op1 = 0
+op2 = 0
 
 def load_program(program):
     global instr_memory, pc, halted, instruction_count, cycle_count, start_time, end_time
@@ -42,7 +46,7 @@ def load_program(program):
 
 
 def execute_instruction():
-    global pc, halted, instruction_count, cycle_count
+    global pc, halted, instruction_count, cycle_count, result, dest, op1, op2
 
     instr = instr_memory[pc]
     opcode = instr[0]
@@ -106,6 +110,57 @@ def execute_instruction():
             sum_ = (sum_ - delta) & 0xFFFFFFFF
         crypto_registers["C0"],crypto_registers["C1"] = v0, v1
         print(f" DEC32 END: C0={hex(v0)}, C1={hex(v1)}")
+        pc += 1
+
+    elif opcode == ISA['MOV']:
+        dest = instr[1] 
+        result = instr[2]
+        registers[dest] = registers[result]
+        pc += 1
+    elif opcode == ISA['ADD']:
+        dest = instr[1]
+        op1 = instr[2]
+        op2 = instr[3]
+        result = registers[2] + registers[3]
+        registers[dest] = result 
+        pc += 1
+    elif opcode == ISA['SUB']:
+        dest = instr[1]
+        op1 = instr[2]
+        op2 = instr[3]
+        result = registers[2] - registers[3]
+        registers[dest] = result 
+        pc += 1
+    elif opcode == ISA['SHR']:
+        dest = instr[1]
+        op1 = instr[2]
+        op2 = instr[3]
+        result = registers[2] >> registers[3]
+        registers[dest] = result 
+        pc += 1
+    elif opcode == ISA['SHL']:
+        dest = instr[1]
+        op1 = instr[2]
+        op2 = instr[3]
+        result = registers[2] << registers[3]
+        registers[dest] = result 
+        pc += 1
+    elif opcode == ISA['XOR']:
+        dest = instr[1]
+        op1 = instr[2]
+        op2 = instr[3]
+        result = registers[2] ^ registers[3]
+        registers[dest] = result 
+        pc += 1
+    elif opcode == ISA['ST']:
+        dest = instr[2]
+        result = instr[1]
+        data_memory[dest] = registers[result]  
+        pc += 1
+    elif opcode == ISA['LD']:
+        dest = instr[1]
+        result = instr[2]
+        registers[dest] = data_memory[result]  
         pc += 1
 
     elif opcode == ISA["HALT"]:
