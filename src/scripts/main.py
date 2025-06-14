@@ -10,22 +10,19 @@ def load_asm_file(filepath):
     with open(filepath, 'r') as f:
         return [line.strip() for line in f if line.strip()]
 
-# Precarga de datos si aplica
+# Precarga de datos
 def preload_memory(mod):
     mod.data_memory[0] = 0x9ABCDEF0
     mod.data_memory[1] = 0xAABBCCDD
-
 
 def preload_registers(mod):
     mod.registers[1] = 0x5
     mod.registers[3] = 0xA
 
-
 if __name__ == '__main__':
     source = load_asm_file('test.asm')
     program = assemble(source)
 
-    # Configuraciones de CPU
     modules = [
         ('Uniciclo', uniciclo),
         ('Multiciclo', multiciclo),
@@ -34,40 +31,41 @@ if __name__ == '__main__':
     results = []
 
     for name, mod in modules:
-        # Cargar y precargar
         mod.load_program(program)
         preload_memory(mod)
         preload_registers(mod)
 
-        # Ejecutar
         mod.run()
 
-        # Leer métricas desde el módulo
-        cycles = getattr(mod, 'cycle_count', None)
-        elapsed = getattr(mod, 'elapsed_time', None)
-        ns = elapsed + 1e9 if elapsed is not None else 0
-        results.append((name, cycles, elapsed))
+        # Métricas
+        elapsed_time = getattr(mod, 'elapsed_time', 1.0)
+        instruction_count = getattr(mod, 'instruction_count', 0)
 
-    # --- GRÁFICO FINAL ---
-    nombres = [r[0] for r in results]
-    ciclos  = [r[1] if r[1] is not None else 0 for r in results]
-    tiempos = [r[2] if r[2] is not None else 0 for r in results]
+        ips = instruction_count / elapsed_time  # instrucciones por segundo
+        mips = ips / 1e6  # millones de instrucciones por segundo
 
-    x = range(len(nombres))
+        results.append((name, elapsed_time, ips))
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8), sharex=True)
+    # Desempaquetar resultados
+    names = [r[0] for r in results]
+    times = [r[1] for r in results]
+    ips_values = [r[2] for r in results]
+    x = range(len(names))
 
-    # Barras para ciclos
-    ax1.bar(x, ciclos)
-    ax1.set_ylabel('Ciclos')
-    ax1.set_title('Comparativa de Ciclos')
+    # Crear una figura con 2 subplots verticales
+    fig, (ax_time, ax_throughput) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
 
-    # Barras para tiempo
-    ax2.bar(x, tiempos)
-    ax2.set_ylabel('Tiempo (s)')
-    ax2.set_title('Comparativa de Tiempo de Ejecución')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(nombres)
+    # 1) Tiempo de ejecución
+    ax_time.bar(x, times, color='salmon')
+    ax_time.set_ylabel('Tiempo (s)')
+    ax_time.set_title('Comparativa de Tiempo de Ejecución')
+
+    # 2) Throughput (MIPS)
+    ax_throughput.bar(x, ips_values, color='mediumseagreen')
+    ax_throughput.set_ylabel('IPS')
+    ax_throughput.set_title('Throughput (Instrucciones por Segundo)')
+    ax_throughput.set_xticks(x)
+    ax_throughput.set_xticklabels(names)
 
     plt.tight_layout()
     plt.show()
