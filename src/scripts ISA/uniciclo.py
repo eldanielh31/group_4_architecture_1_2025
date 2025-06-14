@@ -118,38 +118,45 @@ def execute_instruction():
         registers[dest] = registers[result]
         pc += 1
     elif opcode == ISA['ADD']:
-        dest = instr[1]
-        op1 = instr[2]
-        op2 = instr[3]
-        result = registers[2] + registers[3]
+        dest = instr[3]
+        op1 = instr[1]
+        op2 = instr[2]
+        result = registers[op1] + registers[op2]
         registers[dest] = result 
         pc += 1
     elif opcode == ISA['SUB']:
-        dest = instr[1]
-        op1 = instr[2]
-        op2 = instr[3]
-        result = registers[2] - registers[3]
+        dest = instr[3]
+        op1 = instr[1]
+        op2 = instr[2]
+        result = registers[op1] - registers[op2]
         registers[dest] = result 
         pc += 1
     elif opcode == ISA['SHR']:
-        dest = instr[1]
-        op1 = instr[2]
-        op2 = instr[3]
-        result = registers[2] >> registers[3]
+        dest = instr[3]
+        op1 = instr[1]
+        op2 = instr[2]
+        result = registers[op1] >> registers[op2]
         registers[dest] = result 
         pc += 1
     elif opcode == ISA['SHL']:
-        dest = instr[1]
-        op1 = instr[2]
-        op2 = instr[3]
-        result = registers[2] << registers[3]
-        registers[dest] = result 
+        # instr should be a 4‑tuple/list: (opcode, op1, op2, dest)
+        # let’s unpack and inspect
+        _, raw_op1, raw_op2, raw_dest = instr
+      
+
+        # now make sure they’re ints (or map register names to ints here)
+        op1  = int(raw_op1)
+        op2  = int(raw_op2)
+        dest = int(raw_dest)
+
+        result = registers[op1] << registers[op2]
+        registers[dest] = result
         pc += 1
     elif opcode == ISA['XOR']:
-        dest = instr[1]
-        op1 = instr[2]
-        op2 = instr[3]
-        result = registers[2] ^ registers[3]
+        dest = instr[3]
+        op1 = instr[1]
+        op2 = instr[2]
+        result = registers[op1] ^ registers[op2]
         registers[dest] = result 
         pc += 1
     elif opcode == ISA['ST']:

@@ -84,27 +84,27 @@ def step():
             instructions += 1
             state = "FETCH"
         elif opcode == ISA['ADD']:
-            dest = tmp["args"][0]
-            op1 = tmp["args"][1]
-            op2 = tmp["args"][2]
+            dest = tmp["args"][2]
+            op1 = tmp["args"][0]
+            op2 = tmp["args"][1]
             result = registers[op1] + registers[op2]
             registers[dest] = result
             pc += 1
             instructions += 1
             state = "FETCH"
         elif opcode == ISA['SUB']:
-            dest = tmp["args"][0]
-            op1 = tmp["args"][1]
-            op2 = tmp["args"][2]
+            dest = tmp["args"][2]
+            op1 = tmp["args"][0]
+            op2 = tmp["args"][1]
             result = registers[op1] - registers[op2]
             registers[dest] = result
             pc += 1
             instructions += 1
             state = "FETCH"
         elif opcode == ISA['SHR']:
-            dest = tmp["args"][0]
-            op1 = tmp["args"][1]
-            op2 = tmp["args"][2]
+            dest = tmp["args"][2]
+            op1 = tmp["args"][0]
+            op2 = tmp["args"][1]
             result = registers[op1] >> registers[op2]
             registers[dest] = result
             pc += 1
@@ -112,18 +112,18 @@ def step():
             state = "FETCH"
 
         elif opcode == ISA['SHL']:
-            dest = tmp["args"][0]
-            op1 = tmp["args"][1]
-            op2 = tmp["args"][2]
+            dest = tmp["args"][2]
+            op1 = tmp["args"][0]
+            op2 = tmp["args"][1]
             result = registers[op1] << registers[op2]
             registers[dest] = result
             pc += 1
             instructions += 1
             state = "FETCH"
         elif opcode == ISA['XOR']:
-            dest = tmp["args"][0]
-            op1 = tmp["args"][1]
-            op2 = tmp["args"][2]
+            dest = tmp["args"][2]
+            op1 = tmp["args"][0]
+            op2 = tmp["args"][1]
             result = registers[op1] ^ registers[op2]
             registers[dest] = result
             pc += 1
