@@ -252,7 +252,15 @@ def run():
     cycle_count = cycles
     instruction_count = instructions
 
+    # Reporte original
     print(f"[Multiciclo] Instrucciones ejecutadas: {instruction_count}")
     print(f"[Multiciclo] Ciclos consumidos:       {cycle_count}")
     print(f"[Multiciclo] Tiempo de ejecución:     {elapsed:.6f} segundos")
 
+    # Throughput
+    ips = instruction_count / elapsed_time
+    mips = ips / 1e6
+    ipc = instruction_count / cycle_count if cycle_count > 0 else float('nan')
+
+    print(f"[Multiciclo] Throughput: {ips:.2f} instr/s ({mips:.2f} MIPS)")
+    print(f"[Multiciclo] IPC promedio: {ipc:.2f} instr/ciclo")
