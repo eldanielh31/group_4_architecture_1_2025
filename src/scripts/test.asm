@@ -8,7 +8,7 @@ STB R11
 MOV R2, R1           ; R2 = 5
 ST R2, R3            ; Mem[10] = R2 (5)
 LD R4, R3            ; R4 = Mem[10] = 5
-
+DEC32 K0
 ; ---------- Prueba de operaciones aritméticas ----------
 ADD R1, R3, R5       ; R5 = R1 + R3 = 5 + 10 = 15
 SUB R3, R1, R6       ; R6 = 10 - 5 = 5

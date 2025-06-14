@@ -198,3 +198,10 @@ def run():
     print(f"[Uniciclo] Instrucciones ejecutadas: {instruction_count}")
     print(f"[Uniciclo] Ciclos consumidos:       {cycle_count}")
     print(f"[Uniciclo] Tiempo de ejecución:     {elapsed:.6f} segundos")
+
+    ips = instruction_count / elapsed_time
+    mips = ips / 1e6
+    ipc = instruction_count / cycle_count if cycle_count > 0 else float('nan')
+
+    print(f"[Uniciclo] Throughput: {ips:.2f} instr/s ({mips:.2f} MIPS)")
+    print(f"[Uniciclo] IPC promedio: {ipc:.2f} instr/ciclo")

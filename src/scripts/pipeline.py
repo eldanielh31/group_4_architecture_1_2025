@@ -342,6 +342,13 @@ def run():
     print(f"[Pipeline] Instrucciones ejecutadas: {instruction_count}")
     print(f"[Pipeline] Ciclos consumidos:       {cycle_count}")
     print(f"[Pipeline] Tiempo de ejecución:     {elapsed:.6f} segundos")
+    
+    ips = instruction_count / elapsed_time
+    mips = ips / 1e6
+    ipc = instruction_count / cycle_count if cycle_count > 0 else float('nan')
+
+    print(f"[Pipeline] Throughput: {ips:.2f} instr/s ({mips:.2f} MIPS)")
+    print(f"[Pipeline] IPC promedio: {ipc:.2f} instr/ciclo")
 
 def reset():
     global registers, data_memory, crypto_registers, vault, pc, cycle_count, halted, IF_ID, ID_EX, EX_MEM, MEM_WB
