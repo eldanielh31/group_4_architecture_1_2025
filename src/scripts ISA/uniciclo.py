@@ -66,9 +66,9 @@ def execute_instruction():
 
     elif opcode == ISA["STB"]:
         base_addr = instr[1]
-        data_memory[base_addr] = c0
-        data_memory[base_addr + 1] = c1
-        print(f" -> STB saved C0={hex(c0)}, C1={hex(c1)}")
+        data_memory[base_addr] = crypto_registers["C0"]
+        data_memory[base_addr + 1] = crypto_registers["C1"]
+        print(f" -> STB saved C0={hex(crypto_registers["C0"])}, C1={hex(crypto_registers["C1"])}")
 
         # Limpieza segura de los registros
         for k in crypto_registers:
