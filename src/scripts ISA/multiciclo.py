@@ -59,7 +59,6 @@ def step():
             halted = True
             return
         ir = instr_memory[pc]
-        print(ir)
         tmp["opcode"] = ir[0]
         tmp["args"] = ir[1:]
         state = "DECODE"
@@ -106,7 +105,6 @@ def step():
         crypto_registers["V1"] = int(data_memory[addr + 1])
         pc += 1
         instructions += 1
-        print(f" -> MOVB loaded V0={hex(crypto_registers['V0'])}, V1={hex(crypto_registers['V1'])}")
         state = "FETCH"
 
     elif state == "EXEC_STB":
@@ -130,12 +128,10 @@ def step():
         key = tmp["key"]
         sum_ = tmp["sum"]
         if tmp["mode"] == "ENC":
-            print(f"ENC32 START: V0={hex(v0)}, V1={hex(v1)}")
             sum_ = (sum_ + delta) & 0xFFFFFFFF
             v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
             v1 = (v1 + (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
         else:
-            print(f"DEC32 START: V0={hex(v0)}, V1={hex(v1)}")
             v1 = (v1 - (((v0 << 4) + key[2]) ^ (v0 + sum_) ^ ((v0 >> 5) + key[3]))) & 0xFFFFFFFF
             v0 = (v0 - (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
             sum_ = (sum_ - delta) & 0xFFFFFFFF

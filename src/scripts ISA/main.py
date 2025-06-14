@@ -14,7 +14,8 @@ def load_asm_file(filepath):
 # Precarga de datos si aplica
 
 def preload_memory(mod):
-    mod.data_memory[1] = 0x9ABCDEF0
+    mod.data_memory[0] = 0x9ABCDEF0
+    mod.data_memory[1] = 0xAABBCCDD
     pass
 
 if __name__ == '__main__':
@@ -40,8 +41,8 @@ if __name__ == '__main__':
         # Leer métricas desde el módulo
         cycles = getattr(mod, 'cycle_count', None)
         elapsed = getattr(mod, 'elapsed_time', None)
-
-        results.append((name, cycles, elapsed))
+        ns = elapsed * 1e9 if elapsed is not None else 0
+        results.append((name, cycles, ns))
             
         # --- GRÁFICO ---
         nombres = [r[0] for r in results]
@@ -59,7 +60,7 @@ if __name__ == '__main__':
 
         # Barras para tiempo
         ax2.bar(x, tiempos)
-        ax2.set_ylabel('Tiempo (s)')
+        ax2.set_ylabel('Tiempo (ns)')
         ax2.set_title('Comparativa de Tiempo de Ejecución')
         ax2.set_xticks(x)
         ax2.set_xticklabels(nombres)

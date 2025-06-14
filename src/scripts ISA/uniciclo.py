@@ -2,8 +2,7 @@ from isa import ISA
 import time
 
 # Registros, memorias y PC
-default_registers = [0] * 16
-registers      = default_registers.copy()
+registers      = [0] * 16
 data_memory    = [0] * 50000
 instr_memory   = []
 vault          = {0: [0]*4, 1: [0]*4, 2: [0]*4, 3: [0]*4}
@@ -46,7 +45,6 @@ def execute_instruction():
     global pc, halted, instruction_count, cycle_count
 
     instr = instr_memory[pc]
-    print (instr)
     opcode = instr[0]
         
 

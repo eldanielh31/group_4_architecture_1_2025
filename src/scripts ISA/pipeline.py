@@ -249,20 +249,7 @@ def execute():
         v0 = crypto_registers["V0"]
         v1 = crypto_registers["V1"]
         key = vault[kid]
-        #print(f"[EX] ENC32 START: V0={ascii(v0)}, V1={ascii(v1)}")
-        print(chr(v0 & 0x000000FF))
-        print(chr((v0 & 0x0000FF00)>>8))
-        print(chr((v0 & 0x00FF0000)>>16))
-        print(chr((v0 & 0xFF000000)>>24))
-        print("Xddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
-        print(chr(v1 & 0x000000FF))
-        print(chr((v1 & 0x0000FF00)>>8))
-        print(chr((v1 & 0x00FF0000)>>16))
-        print(chr((v1 & 0xFF000000)>>24))
-
-
-        
-
+        print(f"[EX] ENC32 START: C0={hex(v0)}, C1={hex(v1)}")
         for _ in range(32):
             sum_ = (sum_ + delta) & 0xFFFFFFFF
             v0 = (v0 + (((v1 << 4) + key[0]) ^ (v1 + sum_) ^ ((v1 >> 5) + key[1]))) & 0xFFFFFFFF
